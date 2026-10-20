@@ -1,0 +1,2245 @@
+<title>Ретро-портфолио</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: fixed full-screen WebGL canvas, tall scroll track drives the camera dolly */
+  :root {
+    --void: #050506;
+    --phosphor: #b9c7b4;
+    --amber: #ffb766;
+    --dim: #6c6a60;
+    --pixel: "Press Start 2P", "Courier New", monospace;
+    color-scheme: dark;
+  }
+  html, body { background: var(--void); color: var(--phosphor); }
+  body { font-family: var(--pixel); }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  body.os-on #scene, body.os-on .fx, body.os-on .hint { visibility: hidden; }
+  #track { height: 520vh; }
+
+  .fx { position: fixed; inset: 0; pointer-events: none; }
+  .vignette { background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.75) 100%); }
+  .grain { opacity: .07; mix-blend-mode: screen; animation: grain .4s steps(4) infinite; }
+  @keyframes grain {
+    0% { background-position: 0 0 } 25% { background-position: -40px 20px }
+    50% { background-position: 30px -50px } 75% { background-position: -20px -10px }
+  }
+
+  .hint {
+    position: fixed; left: 0; right: 0;
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; justify-items: center; gap: 14px;
+    font-size: 10px; letter-spacing: .08em; color: var(--dim);
+    text-align: center; pointer-events: none; transition: opacity .4s;
+  }
+  .hint .arrow { color: var(--amber); animation: bob 1.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(6px) } }
+
+  #loader {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    background: var(--void); font-size: 12px; color: var(--dim);
+    transition: opacity .8s;
+  }
+  #loader.gone { opacity: 0; pointer-events: none; }
+  #loader span::after { content: "_"; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0 } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .grain, .hint .arrow { animation: none; }
+  }
+
+  /* ================= inv1zel.log: the OS inside the CRT =================
+     Layout: desktop fills the tube, icon column left, Motif-style panel at the bottom,
+     floating bevelled windows above. Single committed look (no light/dark split). */
+  #os {
+    --desk: #141517;
+    --desk-dot: #1c1d20;
+    --chrome: #c6c2b6;
+    --chrome-hi: #f3f0e7;
+    --chrome-lo: #807b6d;
+    --chrome-dk: #2b2923;
+    --paper: #f6f4ec;
+    --ink: #17160f;
+    --title-a: #1b3a6b;
+    --title-b: #3f74a8;
+    --title-off: #8d897d;
+    --sel: #1b3a6b;
+    --term: #0c100d;
+    --term-ink: #b9e0b2;
+    --warn: #b8322a;
+    --ui: Tahoma, Verdana, "DejaVu Sans", "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    --badge: "Pixelify Sans", Tahoma, sans-serif;
+    position: fixed; inset: 0; z-index: 50;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    font-family: var(--ui); font-size: 12px; color: var(--ink);
+    background: #000; overflow: hidden;
+    opacity: 1; transition: opacity .5s;
+  }
+  #os.leaving { opacity: 0; }
+  #os [hidden], #os[hidden] { display: none !important; }
+
+  /* boot log */
+  .os-boot {
+    position: absolute; inset: 0; background: #000; color: #c9c9c9;
+    font: 13px/1.45 var(--mono);
+    padding: max(20px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 20px max(16px, env(safe-area-inset-left, 0px));
+    overflow: hidden; white-space: pre-wrap;
+  }
+  .os-boot .ok { color: #5fd35f; }
+  .os-boot .hl { color: #fff; }
+  .os-weave {   /* the X11 root window stipple, seen for a blink before the WM paints */
+    position: absolute; inset: 0;
+    background: repeating-conic-gradient(#000 0 25%, #888 0 50%) 0 0 / 4px 4px;
+  }
+
+  /* desktop */
+  .os-desk {
+    position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr);
+    background:
+      radial-gradient(var(--desk-dot) 1px, transparent 1.5px) 0 0 / 6px 6px,
+      var(--desk);
+  }
+  .os-area { position: relative; min-height: 0; overflow: hidden; }
+  .os-icons {
+    position: absolute; top: 14px; left: max(14px, env(safe-area-inset-left, 0px));
+    display: grid; gap: 10px; justify-items: center; z-index: 1;
+  }
+  .os-icon {
+    width: 84px; display: grid; justify-items: center; gap: 4px;
+    background: none; border: 1px dotted transparent; padding: 6px 2px;
+    color: #fff; font: 12px var(--ui); text-shadow: 1px 1px 0 #000; cursor: default;
+  }
+  .os-icon svg { width: 36px; height: 36px; image-rendering: pixelated; }
+  .os-icon span { padding: 1px 3px; }
+  .os-icon.sel span, .os-icon:focus-visible span { background: var(--sel); text-shadow: none; }
+  .os-icon:focus-visible { outline: none; border-color: #fff; }
+  .os-wall { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .os-wallmark {
+    position: absolute; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 18px;
+    font: 11px var(--mono); color: rgba(210,212,216,.42); text-align: right; letter-spacing: .18em;
+    text-transform: uppercase; pointer-events: none;
+  }
+  .os-wallmark b {   /* Y2K chrome lettering with a travelling glint */
+    display: block; font: 600 clamp(30px, 6vw, 56px)/1 var(--badge); letter-spacing: .02em; text-transform: none;
+    background: linear-gradient(180deg, #ffffff 0%, #d4d6da 38%, #55585e 50%, #b9bcc2 62%, #f2f3f5 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,.12)) drop-shadow(0 2px 0 rgba(0,0,0,.7));
+    position: relative; margin-bottom: 6px;
+  }
+  .os-wallmark b::after {
+    content: attr(data-text); position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.95) 50%, transparent 60%) -150% 0 / 250% 100% no-repeat;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: glint 5s ease-in-out infinite;
+  }
+  @keyframes glint { 0%, 55% { background-position: -150% 0 } 85%, 100% { background-position: 250% 0 } }
+
+  /* bevel primitives */
+  .bv { border: 2px solid; border-color: var(--chrome-hi) var(--chrome-dk) var(--chrome-dk) var(--chrome-hi); }
+  .bv-in { border: 2px solid; border-color: var(--chrome-lo) var(--chrome-hi) var(--chrome-hi) var(--chrome-lo); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--chrome); color: var(--ink); font: 12px var(--ui);
+    padding: 4px 12px; min-height: 26px; cursor: pointer; text-decoration: none;
+    border: 2px solid; border-color: var(--chrome-hi) var(--chrome-dk) var(--chrome-dk) var(--chrome-hi);
+  }
+  .btn:active, .btn.on { border-color: var(--chrome-dk) var(--chrome-hi) var(--chrome-hi) var(--chrome-dk); }
+  .btn:focus-visible { outline: 1px dotted var(--ink); outline-offset: -5px; }
+  .btn.primary { font-weight: bold; }
+
+  /* panel */
+  .os-panel {
+    display: flex; align-items: stretch; gap: 4px; background: var(--chrome);
+    border-top: 2px solid var(--chrome-hi);
+    padding: 3px max(4px, env(safe-area-inset-right, 0px)) calc(3px + env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px));
+    position: relative; z-index: 9000;
+  }
+  .os-start { font: 13px var(--badge); padding-inline: 10px; gap: 7px; }
+  .os-start i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffff, #b8bbc0 45%, #3c3f44 100%); box-shadow: 0 0 4px rgba(255,255,255,.5); }
+  .os-tasks { flex: 1; display: flex; gap: 3px; min-width: 0; overflow: hidden; }
+  .os-tasks .btn { justify-content: flex-start; flex: 0 1 170px; min-width: 0; padding-inline: 8px; }
+  .os-tasks .btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .os-tasks .btn svg { width: 16px; height: 16px; flex: none; }
+  .os-tray { display: flex; align-items: center; gap: 10px; padding-inline: 10px; font-variant-numeric: tabular-nums; }
+  .os-menu {
+    position: absolute; left: max(4px, env(safe-area-inset-left, 0px)); bottom: calc(100% + 1px);
+    background: var(--chrome); min-width: 230px; display: grid; padding: 2px;
+  }
+  .os-menu .side {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 24px; background: linear-gradient(var(--title-b), var(--title-a));
+    color: #fff; font: 13px var(--badge); writing-mode: vertical-rl; transform: rotate(180deg);
+    display: flex; align-items: center; padding: 8px 0; letter-spacing: .1em;
+  }
+  .os-menu button {
+    display: flex; align-items: center; gap: 10px; background: none; border: 0; text-align: left;
+    font: 12px var(--ui); padding: 7px 14px 7px 34px; cursor: pointer; color: var(--ink);
+  }
+  .os-menu button svg { width: 20px; height: 20px; }
+  .os-menu button:hover, .os-menu button:focus-visible { background: var(--sel); color: #fff; outline: none; }
+  .os-menu hr { border: 0; border-top: 1px solid var(--chrome-lo); border-bottom: 1px solid var(--chrome-hi); margin: 3px 4px 3px 30px; }
+
+  /* windows */
+  .win {
+    position: absolute; display: flex; flex-direction: column; background: var(--chrome);
+    border: 2px solid; border-color: var(--chrome-hi) var(--chrome-dk) var(--chrome-dk) var(--chrome-hi);
+    box-shadow: 1px 1px 0 #000, 6px 8px 0 rgba(0,0,0,.25);
+    padding: 2px; min-width: 0; box-sizing: border-box;
+    animation: winIn .16s steps(3);
+  }
+  @keyframes winIn { from { transform: scale(.92); opacity: .4 } }
+  .win.max { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; box-shadow: none; }
+  .win[hidden] { display: none !important; }
+  .win-bar {
+    display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 2px 0 5px;
+    background: var(--title-off); color: #e9e6dc; font-weight: bold; user-select: none; touch-action: none;
+  }
+  .win.active .win-bar { background: linear-gradient(90deg, var(--title-a), var(--title-b)); color: #fff; }
+  .win-bar svg { width: 16px; height: 16px; flex: none; }
+  .win-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .win-btns { display: flex; gap: 2px; }
+  .win-btns button {
+    width: 18px; height: 16px; padding: 0; background: var(--chrome); cursor: pointer;
+    border: 2px solid; border-color: var(--chrome-hi) var(--chrome-dk) var(--chrome-dk) var(--chrome-hi);
+    display: grid; place-items: center; color: var(--ink);
+  }
+  .win-btns button:active { border-color: var(--chrome-dk) var(--chrome-hi) var(--chrome-hi) var(--chrome-dk); }
+  .win-btns svg { width: 8px; height: 8px; }
+  .win-menu { display: flex; gap: 2px; padding: 2px 2px 3px; }
+  .win-menu span { padding: 1px 6px; }
+  .win-menu span::first-letter { text-decoration: underline; }
+  .win-body { flex: 1; min-height: 0; overflow: auto; }
+  .win-status { display: flex; gap: 3px; padding-top: 3px; }
+  .win-status span { flex: 1; padding: 1px 6px; border: 1px solid; border-color: var(--chrome-lo) var(--chrome-hi) var(--chrome-hi) var(--chrome-lo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .win-status span:last-child { flex: 0 0 auto; }
+
+  .paper { background: var(--paper); }
+  .sunken { border: 2px solid; border-color: var(--chrome-lo) var(--chrome-hi) var(--chrome-hi) var(--chrome-lo); box-shadow: inset 1px 1px 0 var(--chrome-dk); }
+
+  /* whoami */
+  .who { display: grid; grid-template-columns: auto 1fr; gap: 18px; padding: 16px; background: var(--term); color: var(--term-ink); font: 13px/1.55 var(--mono); min-height: 100%; }
+  .who pre { margin: 0; color: #ffb766; font: 12px/1.15 var(--mono); }
+  .who-main { min-width: 0; max-width: 62ch; }
+  .who .p { color: #6fb3ff; }
+  .who .p b { color: var(--term-ink); font-weight: normal; }
+  .who h2 { margin: 6px 0 0; font: 22px var(--badge); color: #fff; text-wrap: balance; }
+  .who .role { margin: 0 0 12px; color: #9bb59a; }
+  .who p { margin: 0 0 10px; }
+  .who ul { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 2px; }
+  .who li { display: grid; grid-template-columns: minmax(0, 15ch) auto; gap: 12px; }
+  .who .bar { color: #5fd35f; letter-spacing: -.02em; white-space: pre; }
+  .who .cur::after { content: "█"; animation: blink 1s steps(1) infinite; }
+
+  /* files */
+  .fm { display: grid; grid-template-rows: auto 1fr; height: 100%; gap: 3px; }
+  .fm-tools { display: flex; gap: 3px; align-items: center; }
+  .fm-tools .btn { padding-inline: 8px; }
+  .fm-tools .btn:disabled { color: var(--chrome-lo); text-shadow: 1px 1px 0 var(--chrome-hi); cursor: default; }
+  .fm-path { flex: 1; min-width: 0; background: var(--paper); padding: 3px 6px; font: 12px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fm-main { display: grid; grid-template-columns: 196px 1fr; gap: 3px; min-height: 0; }
+  .fm-tree { background: var(--paper); padding: 6px 4px; overflow: auto; font-size: 12px; }
+  .fm-tree button { display: flex; align-items: center; gap: 4px; width: 100%; background: none; border: 0; padding: 2px 4px; font: 12px var(--ui); color: var(--ink); cursor: pointer; text-align: left; }
+  .fm-tree button svg { width: 16px; height: 16px; flex: none; }
+  .fm-tree button.cur { background: var(--sel); color: #fff; }
+  .fm-tree .d1 { padding-left: 14px; } .fm-tree .d2 { padding-left: 24px; } .fm-tree .d3 { padding-left: 34px; }
+  .fm-view { background: var(--paper); overflow: auto; min-width: 0; }
+  .fm-grid { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 12px; }
+  .fm-grid .os-icon { color: var(--ink); text-shadow: none; width: 112px; }
+  .os-icon span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+  .fm-grid .os-icon.sel span, .fm-grid .os-icon:focus-visible span { color: #fff; }
+  .fm-grid .os-icon:focus-visible { border-color: var(--ink); }
+
+  .proj { padding: 14px; display: grid; gap: 14px; }
+  .shot { aspect-ratio: 16 / 9; max-width: 100%; width: 460px; border: 2px solid; border-color: var(--chrome-lo) var(--chrome-hi) var(--chrome-hi) var(--chrome-lo);
+    display: grid; grid-template-rows: auto 1fr; background: hsl(var(--h) 35% 22%); overflow: hidden; }
+  .shot-bar { display: flex; gap: 4px; align-items: center; padding: 4px 6px; background: #d8d4c8; font: 10px var(--mono); color: #555; }
+  .shot-bar i { width: 7px; height: 7px; background: #9a9688; border-radius: 50%; }
+  .shot-bar span { margin-left: 6px; background: #fff; padding: 1px 6px; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .shot-body { display: grid; align-content: center; justify-items: start; gap: 8px; padding: 6% 8%;
+    background: linear-gradient(135deg, hsl(var(--h) 55% 32%), hsl(calc(var(--h) + 40) 50% 18%)); color: #fff; }
+  .shot-body b { font: clamp(18px, 4vw, 30px) var(--badge); }
+  .shot-body s { display: block; height: 6px; width: 60%; background: rgba(255,255,255,.35); text-decoration: none; }
+  .shot-body s + s { width: 40%; }
+  .proj h3 { margin: 0; font: 20px var(--badge); }
+  .proj dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
+  .proj dt { color: #5d5a50; }
+  .proj dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font: 11px var(--mono); padding: 0 5px; border: 1px solid var(--chrome-lo); background: #ebe7da; }
+  .proj p { margin: 0; max-width: 62ch; line-height: 1.55; }
+  .proj-points { margin: 0; padding-left: 18px; max-width: 64ch; display: grid; gap: 8px; line-height: 1.5; }
+  .proj-points li::marker { color: var(--chrome-lo); }
+  /* gold-on-black mock of the Aurum Dental hero, standing in for a screenshot */
+  .shot.gold .shot-body { background: radial-gradient(ellipse at 70% 40%, #2a2112, #0b0906 70%); justify-items: start; }
+  .shot.gold small { font: 10px var(--mono); letter-spacing: .25em; text-transform: uppercase; color: #b89a5e; }
+  .shot.gold b { font: italic 600 clamp(22px, 5vw, 40px) Georgia, "Times New Roman", serif;
+    background: linear-gradient(180deg, #f7e3a8, #c9a24e 55%, #8a6a2a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .shot.carbon .shot-body { justify-items: start;
+    background: linear-gradient(120deg, rgba(255,255,255,.07), transparent 40%),
+      repeating-linear-gradient(45deg, #1b1c1f 0 4px, #141517 4px 8px), #151618; }
+  .shot.carbon small { font: 10px var(--mono); letter-spacing: .3em; text-transform: uppercase; color: #8d9096; }
+  .shot.carbon b { font: 600 clamp(22px, 5vw, 40px) var(--ui); letter-spacing: .18em; text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff, #a9adb4 50%, #4f5258 52%, #d6d9de); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .shot.carbon em { font: 11px var(--ui); font-style: normal; color: #e6e7ea; border: 1px solid #6d7076; padding: 5px 14px; letter-spacing: .1em; text-transform: uppercase; }
+  .shot.nocturne .shot-body { justify-items: start;
+    background: radial-gradient(ellipse at 75% 30%, rgba(120,110,160,.35), transparent 55%), radial-gradient(ellipse at 20% 90%, rgba(60,50,80,.5), transparent 60%), #0c0b10; }
+  .shot.nocturne small { font: 10px var(--mono); letter-spacing: .3em; text-transform: uppercase; color: #8e8a99; }
+  .shot.nocturne b { font: 300 italic clamp(26px, 6vw, 48px)/1 Georgia, "Times New Roman", serif; color: #ece8df; letter-spacing: .01em; }
+  .shot.nocturne em { font: 10px var(--mono); font-style: normal; color: #0c0b10; background: #ece8df; border-radius: 999px; padding: 5px 12px; letter-spacing: .08em; text-transform: uppercase; }
+  .shot.gold em { font: 11px var(--ui); font-style: normal; color: #0b0906; background: linear-gradient(#e9cd85, #b8913f); padding: 5px 12px; }
+  .proj .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* mail */
+  .mail { display: grid; grid-template-columns: 150px 1fr; grid-template-rows: auto 1fr; gap: 3px; height: 100%; }
+  .mail-tools { grid-column: 1 / -1; display: flex; gap: 3px; }
+  .mail-folders { background: var(--paper); padding: 4px; display: grid; align-content: start; gap: 1px; }
+  .mail-folders div { padding: 3px 6px; display: flex; justify-content: space-between; }
+  .mail-folders .cur { background: var(--sel); color: #fff; }
+  .mail-right { display: grid; grid-template-rows: auto 1fr; gap: 3px; min-width: 0; min-height: 0; }
+  .mail-list { background: var(--paper); }
+  .mail-list table { width: 100%; border-collapse: collapse; }
+  .mail-list th { background: var(--chrome); text-align: left; font-weight: normal; padding: 2px 6px; border: 1px solid; border-color: var(--chrome-hi) var(--chrome-dk) var(--chrome-dk) var(--chrome-hi); }
+  .mail-list td { padding: 3px 6px; white-space: nowrap; }
+  .mail-list tr.cur td { background: var(--sel); color: #fff; }
+  .mail-list tr.unread td { font-weight: bold; }
+  .mail-msg { background: var(--paper); overflow: auto; min-width: 0; }
+  .mail-head { padding: 8px 12px; border-bottom: 1px solid var(--chrome-lo); display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
+  .mail-head dt { color: #5d5a50; } .mail-head dd { margin: 0; }
+  .mail-text { padding: 12px; max-width: 62ch; line-height: 1.55; }
+  .mail-text p { margin: 0 0 10px; }
+  .contacts { display: grid; gap: 6px; margin: 4px 0 14px; }
+  .contact { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 8px; background: #ebe7da; border: 1px solid var(--chrome-lo); }
+  .contact dt { color: #5d5a50; } .contact dd { margin: 0; font: 13px var(--mono); overflow-wrap: anywhere; user-select: all; }
+  .contact dd.nomail { font: italic 12px var(--ui); color: #5d5a50; user-select: auto; }
+  .contact a { color: var(--title-a); }
+
+  .dlg { display: grid; grid-template-columns: auto 1fr; gap: 14px; padding: 16px; align-items: start; }
+  .dlg svg { width: 32px; height: 32px; }
+  .dlg p { margin: 0 0 8px; line-height: 1.5; }
+  .dlg .acts { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 6px; }
+
+  /* browser chrome */
+  .br { display: grid; grid-template-rows: auto auto auto 1fr; gap: 3px; height: 100%; box-sizing: border-box; }
+  .br-tools { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+  .br-tools .btn { padding-inline: 8px; }
+  .br-tools .btn:disabled { color: var(--chrome-lo); text-shadow: 1px 1px 0 var(--chrome-hi); cursor: default; }
+  .br-throb { margin-left: auto; width: 32px; height: 28px; display: grid; place-items: center; background: #111; }
+  .br-throb i { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #9a9da3 45%, #2b2d31 100%); }
+  .br-throb.busy i { background: conic-gradient(#fff, #55585e, #fff); animation: spin .5s linear infinite; }
+  @keyframes spin { to { transform: rotate(1turn) } }
+  .br-addr { display: flex; gap: 4px; align-items: center; }
+  .br-addr label { padding: 0 2px 0 4px; }
+  .br-addr input { flex: 1; min-width: 0; font: 12px var(--mono); padding: 3px 6px; background: #fff; color: var(--ink);
+    border: 2px solid; border-color: var(--chrome-lo) var(--chrome-hi) var(--chrome-hi) var(--chrome-lo); }
+  .br-marks { display: flex; gap: 2px; flex-wrap: wrap; align-items: center; font-size: 11px; padding-left: 4px; }
+  .br-marks button { background: none; border: 1px solid transparent; padding: 1px 6px; font: 11px var(--ui); cursor: pointer; color: var(--ink); }
+  .br-marks button:hover { border-color: var(--chrome-hi) var(--chrome-dk) var(--chrome-dk) var(--chrome-hi); }
+  .br-view { background: #fff; overflow: auto; min-height: 0; }
+  .br-view.loading .web { animation: dial 1s steps(12) both; }
+  @keyframes dial { from { clip-path: inset(0 0 100% 0) } to { clip-path: inset(0 0 0 0) } }
+
+  /* the web of 2003: pages inside the browser */
+  .web { font: 15px/1.4 "Times New Roman", Times, serif; color: #000; min-height: 100%; }
+  .web a { color: #0000ee; text-decoration: underline; cursor: pointer; }
+  .web a:hover { color: #e00; }
+  .web h1, .web h2 { font-family: "Times New Roman", Times, serif; margin: 0 0 8px; }
+  .web input, .web textarea { font: 13px var(--ui); padding: 3px 5px; border: 2px inset #ccc; background: #fff; color: #000; min-width: 0; }
+  .w-marq { overflow: hidden; white-space: nowrap; background: #000080; color: #ff0; font: bold 13px var(--ui); padding: 3px 0; }
+  .w-marq span { display: inline-block; padding-left: 100%; animation: marq 16s linear infinite; }
+  @keyframes marq { to { transform: translateX(-100%) } }
+  .w-cols { display: grid; grid-template-columns: 150px minmax(0, 1fr); min-height: calc(100% - 22px); }
+  .w-nav { background: #003366; color: #fff; padding: 12px 10px; display: grid; align-content: start; gap: 7px; font: 13px var(--ui); }
+  .w-nav a { color: #ffcc00; }
+  .w-main { padding: 14px 18px; max-width: 640px; background: #fffef6; }
+  .w-logo { font: bold italic 38px/1.1 "Times New Roman", serif; margin: 0;
+    background: linear-gradient(90deg, #e00, #f80, #db0, #0a0, #06f, #80f); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .w-blink { animation: blink 1s steps(1) infinite; color: #e00; font-weight: bold; }
+  .w-search { display: flex; gap: 6px; margin: 10px 0 16px; max-width: 420px; }
+  .w-search input { flex: 1; }
+  .w-news { margin: 0 0 14px; }
+  .w-news dt { font-weight: bold; color: #800000; }
+  .w-news dd { margin: 0 0 8px 18px; }
+  .w-uc { background: repeating-linear-gradient(45deg, #fc0 0 12px, #111 12px 24px); padding: 6px; text-align: center; margin: 14px 0; }
+  .w-uc span { background: #fc0; color: #000; font: bold 12px var(--ui); padding: 2px 8px; }
+  .w-counter { display: inline-flex; gap: 1px; background: #000; padding: 2px; vertical-align: middle; }
+  .w-counter b { background: #222; color: #3f3; font: 14px var(--mono); padding: 0 3px; }
+  .w-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .w-badge { font: 10px var(--ui); border: 1px solid #000; padding: 2px 5px; background: #eee; }
+  .w-badge:nth-child(2n) { background: #000; color: #0f0; }
+  .w-results { padding: 14px 18px; max-width: 640px; }
+  .w-results .hit { margin: 0 0 14px; }
+  .w-results .hit small { color: #080; display: block; }
+  .w-err { padding: 24px; font: 13px/1.5 var(--ui); max-width: 560px; }
+  .w-err h2 { font: bold 18px var(--ui); }
+  .w-err ul { padding-left: 20px; }
+  .w-cat { background: radial-gradient(#fff 1px, transparent 1.5px) 0 0 / 23px 23px, radial-gradient(#ff0 1px, transparent 1.5px) 11px 9px / 31px 31px, #000;
+    color: #ff0; font-family: "Comic Sans MS", "Comic Neue", cursive; text-align: center; padding: 18px; }
+  .w-cat h1 { color: #f0f; font: bold 26px "Comic Sans MS", "Comic Neue", cursive; text-shadow: 2px 2px 0 #00f; }
+  .w-cat pre { color: #0ff; font: 16px/1.15 var(--mono); display: inline-block; text-align: left; margin: 8px 0 14px; }
+  .w-cat a { color: #0ff; }
+  .w-gb { background: #ffffe0; padding: 16px 18px; min-height: 100%; box-sizing: border-box; }
+  .w-gb form { display: grid; gap: 6px; max-width: 420px; margin-bottom: 16px; padding: 10px; border: 2px ridge #cc9; }
+  .w-gb article { border: 1px dashed #996; background: #fff; padding: 8px 10px; margin-bottom: 8px; max-width: 560px; }
+  .w-gb article b { color: #00c; }
+  .w-gb article small { color: #777; }
+
+  .prize { padding: 14px; text-align: center; background: repeating-linear-gradient(45deg, #fff6a8 0 10px, #ffe36a 10px 20px); min-height: 100%; box-sizing: border-box; }
+  .prize b { font: bold 22px var(--ui); color: #c00; display: block; }
+  .prize p { margin: 8px 0 14px; line-height: 1.5; }
+  .prize .btn { transition: transform .15s; }
+
+  /* games */
+  .mines { padding: 8px; display: grid; gap: 8px; justify-content: center; align-content: center; min-height: 100%; box-sizing: border-box; }
+  .mines-intro { padding: 14px; display: grid; gap: 10px; justify-items: center; text-align: center; width: 220px; margin: 0 auto; }
+  .mines-intro p { margin: 0; line-height: 1.5; }
+  .mines-intro .led { font-size: 30px; }
+  .mines-intro input { font: 16px var(--mono); padding: 4px 6px; width: 140px; text-align: center; background: var(--paper); color: var(--ink);
+    border: 2px solid; border-color: var(--chrome-lo) var(--chrome-hi) var(--chrome-hi) var(--chrome-lo); }
+  .mines-intro .note { color: var(--warn); font-size: 11px; min-height: 1.3em; }
+  .mines-intro .verdict { font: 15px/1.5 var(--ui); }
+  .mines-intro .acts { display: flex; gap: 6px; }
+  .mines-top { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; }
+  .led { background: #000; color: #f22; font: bold 22px/1 var(--mono); padding: 2px 4px; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .face { width: 32px; min-height: 32px; padding: 0; font: bold 12px var(--mono); }
+  .mines-grid { display: grid; grid-template-columns: repeat(9, 24px); }
+  .mc { width: 24px; height: 24px; padding: 0; font: bold 14px var(--ui); background: var(--chrome); cursor: default; display: grid; place-items: center;
+    border: 3px solid; border-color: var(--chrome-hi) var(--chrome-lo) var(--chrome-lo) var(--chrome-hi); color: var(--ink); }
+  .mc.open { border: 0; border-right: 1px solid var(--chrome-lo); border-bottom: 1px solid var(--chrome-lo); background: #bcb8ac; }
+  .mc.boom { background: #e33; }
+  .mc.flag::before { content: ""; border-left: 8px solid #d00; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+  .mc.mine::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #111; box-shadow: 0 0 0 2px #bcb8ac, 0 0 0 3px #111; }
+  .mc[data-n="1"] { color: #0000e0; } .mc[data-n="2"] { color: #007b00; } .mc[data-n="3"] { color: #d00; } .mc[data-n="4"] { color: #00007b; }
+  .mc[data-n="5"] { color: #7b0000; } .mc[data-n="6"] { color: #007b7b; } .mc[data-n="7"] { color: #000; } .mc[data-n="8"] { color: #666; }
+  .snake { padding: 8px; display: grid; gap: 8px; justify-items: center; align-content: center; min-height: 100%; box-sizing: border-box; }
+  .snake-hud { display: flex; gap: 18px; font: 12px var(--mono); }
+  .snake canvas { width: min(300px, 100%); max-width: 100%; aspect-ratio: 1; image-rendering: pixelated; border: 3px solid; border-color: var(--chrome-lo) var(--chrome-hi) var(--chrome-hi) var(--chrome-lo); touch-action: none; }
+  .snake canvas:focus-visible { outline: 1px dotted var(--ink); outline-offset: 2px; }
+  .pad { display: grid; grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 34px); gap: 4px; }
+
+  /* tube glass over the whole OS */
+  .os-crt { position: absolute; inset: 0; pointer-events: none; z-index: 9999;
+    background:
+      repeating-linear-gradient(rgba(0,0,0,.12) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.45) 100%);
+    animation: hum 6s linear infinite; }
+  @keyframes hum { 0%, 100% { opacity: .9 } 50% { opacity: 1 } }
+
+  .os-icon, .win-bar, .os-panel, .win-menu, .win-status, .mines, .snake { -webkit-user-select: none; user-select: none; }
+
+  /* fingers: bigger targets, no iOS zoom-on-focus */
+  @media (pointer: coarse) {
+    .win-bar { height: 34px; font-size: 13px; }
+    .win-bar > svg { width: 18px; height: 18px; }
+    .win-btns { gap: 4px; }
+    .win-btns button { width: 32px; height: 26px; }
+    .win-btns svg { width: 10px; height: 10px; }
+    .btn { min-height: 34px; }
+    .os-panel .btn { min-height: 40px; }
+    .os-menu { min-width: 250px; }
+    .os-menu button { padding: 12px 18px 12px 38px; font-size: 14px; }
+    #os input, #os textarea { font-size: 16px; }
+    .mines-grid { grid-template-columns: repeat(9, 32px); }
+    .mc { width: 32px; height: 32px; font-size: 16px; }
+    .face { width: 40px; min-height: 40px; }
+    .snake canvas { width: min(340px, 100%); }
+    .pad { grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(2, 48px); gap: 6px; }
+    .br-marks button { padding: 6px 8px; font-size: 12px; }
+  }
+
+  @media (max-height: 500px) {
+    .os-icons { grid-auto-flow: column; grid-template-rows: repeat(3, auto); gap: 2px 6px; top: 6px; }
+    .os-icon { padding: 3px 2px; }
+    .win-menu { display: none; }
+    .os-wallmark b { font-size: 28px; }
+    .mines { grid-template-columns: auto auto; grid-template-areas: "top grid" "mode grid"; align-items: start; column-gap: 14px; }
+    .mines-top { grid-area: top; flex-direction: column; gap: 8px; }
+    .mines-grid { grid-area: grid; }
+    .mines [data-mode] { grid-area: mode; }
+    .mines-grid { grid-template-columns: repeat(9, 27px) !important; }
+    .mc { width: 27px !important; height: 27px !important; font-size: 14px !important; }
+    .snake { grid-template-columns: auto auto; align-items: center; column-gap: 18px; }
+    .snake-hud { grid-column: 1 / -1; }
+    .snake canvas { width: min(230px, 55vh) !important; }
+  }
+
+  @media (max-width: 640px) {
+    .win-menu { display: none; }
+    .os-tasks .btn { flex: 0 1 46px; justify-content: center; }
+    .os-tasks .btn span { display: none; }
+    .os-tasks .btn svg { width: 18px; height: 18px; }
+    .w-nav b { display: none; }
+    .w-nav a { white-space: nowrap; }
+    .w-main, .w-results { padding: 12px; }
+    .w-logo { font-size: 30px; }
+    .w-search { flex-wrap: wrap; }
+    .fm-tools .btn { padding-inline: 6px; }
+    .mail-list { overflow-x: auto; }
+    .proj { padding: 12px; }
+    .os-wallmark { bottom: 12px; }
+    .os-icons { grid-template-columns: repeat(4, 80px); gap: 4px; }
+    .w-cols { grid-template-columns: 1fr; }
+    .w-nav { grid-auto-flow: column; overflow-x: auto; }
+    .fm-main { grid-template-columns: 1fr; }
+    .fm-tree { display: none; }
+    .mail { grid-template-columns: 1fr; }
+    .mail-folders { display: none; }
+    .who { grid-template-columns: 1fr; }
+    .contact { grid-template-columns: 1fr auto; }
+    .contact dt { grid-column: 1 / -1; }
+    .os-tray span:first-child { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .win, .os-crt, .who .cur::after, .os-wallmark b::after, .w-marq span, .w-blink, .br-view.loading .web { animation: none; }
+  }
+</style>
+
+<canvas id="scene"></canvas>
+<div class="fx vignette"></div>
+<div class="fx grain" id="grain"></div>
+<div class="hint" id="hint">
+  <div>КРУТИ КОЛЁСИКО — САДИСЬ ЗА КОМП</div>
+  <div class="arrow">▼</div>
+</div>
+<div id="track"></div>
+<div id="loader"><span>ЗАГРУЗКА</span></div>
+
+<div id="os" hidden>
+  <div class="os-desk" id="osDesk" hidden>
+    <div class="os-area" id="osArea">
+      <div class="os-icons" id="osIcons"></div>
+      <canvas class="os-wall" id="osWall" aria-hidden="true"></canvas>
+      <div class="os-wallmark"><b data-osname></b><span>v2.4 · build 2003 · <span data-oshost></span>.net</span></div>
+    </div>
+    <div class="os-panel">
+      <button class="btn os-start" id="osStart" aria-haspopup="menu" aria-expanded="false"><i></i><span data-osname></span></button>
+      <div class="os-menu bv" id="osMenu" role="menu" hidden></div>
+      <div class="os-tasks" id="osTasks"></div>
+      <div class="os-tray bv-in"><span>RU</span><span id="osClock">--:--</span></div>
+    </div>
+  </div>
+  <div class="os-boot" id="osBoot" hidden></div>
+  <div class="os-crt"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const DESK_Y = 0.77;
+
+  // ---------- grain overlay ----------
+  {
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const g = c.getContext("2d"); const img = g.createImageData(128, 128);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255; img.data[i] = img.data[i+1] = img.data[i+2] = v; img.data[i+3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    document.getElementById("grain").style.backgroundImage = `url(${c.toDataURL()})`;
+  }
+
+  // ---------- renderer / scene ----------
+  const canvas = document.getElementById("scene");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const coarse = matchMedia("(hover: none)").matches;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.5 : 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x050506);
+  scene.fog = new THREE.FogExp2(0x050506, 0.28);
+
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 30);
+
+  // ---------- helpers ----------
+  function canvasTex(w, h, draw, repeat) {
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    draw(c.getContext("2d"), w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+    return t;
+  }
+  function noise(g, w, h, amt) {
+    const img = g.getImageData(0, 0, w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const n = (Math.random() - 0.5) * amt;
+      img.data[i] += n; img.data[i+1] += n; img.data[i+2] += n;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  function mesh(geo, mat, x, y, z, parent) {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.castShadow = m.receiveShadow = true;
+    (parent || scene).add(m);
+    return m;
+  }
+  const box = (w, h, d, mat, x, y, z, parent) => mesh(new THREE.BoxGeometry(w, h, d), mat, x, y, z, parent);
+  const std = (color, rough = 0.7, metal = 0, extra = {}) =>
+    new THREE.MeshStandardMaterial(Object.assign({ color, roughness: rough, metalness: metal }, extra));
+
+  // ---------- materials ----------
+  const beige = std(0xcdc3a2, 0.55);          // aged ABS plastic
+  const beigeDark = std(0xa99f80, 0.6);
+  const blackPlastic = std(0x151515, 0.5);
+  const slotBlack = std(0x050505, 0.9);
+
+  const woodTex = canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = "#4a2f1c"; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 140; i++) {
+      const y = Math.random() * h;
+      g.strokeStyle = `rgba(${20 + Math.random()*40},${10 + Math.random()*20},5,${0.15 + Math.random()*0.25})`;
+      g.lineWidth = 1 + Math.random() * 3;
+      g.beginPath();
+      for (let x = 0; x <= w; x += 16) g.lineTo(x, y + Math.sin(x * 0.01 + i) * 6);
+      g.stroke();
+    }
+    noise(g, w, h, 18);
+  });
+  const wood = std(0xffffff, 0.65, 0, { map: woodTex });
+
+  const wallTex = canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = "#3a3d33"; g.fillRect(0, 0, w, h);
+    for (let x = 0; x < w; x += 32) {          // soviet-flat wallpaper stripes
+      g.fillStyle = "rgba(0,0,0,.12)"; g.fillRect(x, 0, 14, h);
+      g.fillStyle = "rgba(255,240,200,.04)"; g.fillRect(x + 20, 0, 3, h);
+    }
+    for (let i = 0; i < 6; i++) {               // water stains
+      const gr = g.createRadialGradient(Math.random()*w, Math.random()*h, 0, Math.random()*w, Math.random()*h, 80 + Math.random()*120);
+      gr.addColorStop(0, "rgba(60,45,20,.18)"); gr.addColorStop(1, "rgba(60,45,20,0)");
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    }
+    noise(g, w, h, 14);
+  }, [4, 2]);
+  const wall = std(0xffffff, 0.95, 0, { map: wallTex });
+
+  const floorTex = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = "#231c16"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#1b1511";
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) g.fillRect(x*32, y*32, 32, 32);
+    noise(g, w, h, 16);
+  }, [10, 10]);
+  const floorMat = std(0xffffff, 0.85, 0, { map: floorTex });
+
+  // ---------- room ----------
+  const floor = mesh(new THREE.PlaneGeometry(12, 12), floorMat, 0, 0, 0);
+  floor.rotation.x = -Math.PI / 2;
+  mesh(new THREE.PlaneGeometry(8, 3.2), wall, 0, 1.6, -0.55);
+  const leftWall = mesh(new THREE.PlaneGeometry(6, 3.2), wall, -1.7, 1.6, 2.4);
+  leftWall.rotation.y = Math.PI / 2;
+  // skirting board
+  box(8, 0.08, 0.02, std(0x2a1d14, 0.7), 0, 0.04, -0.54);
+
+  // ---------- desk ----------
+  box(1.7, 0.04, 0.82, wood, 0, DESK_Y - 0.02, -0.11);
+  box(0.03, DESK_Y - 0.04, 0.78, wood, -0.82, (DESK_Y - 0.04) / 2, -0.11);
+  box(0.03, DESK_Y - 0.04, 0.78, wood, 0.82, (DESK_Y - 0.04) / 2, -0.11);
+  box(1.6, 0.35, 0.02, wood, 0, DESK_Y - 0.22, -0.48);       // modesty panel
+  box(0.4, 0.14, 0.7, wood, 0.6, DESK_Y - 0.11, -0.12);      // drawer
+  box(0.08, 0.015, 0.02, std(0x8a7a55, 0.3, 0.8), 0.6, DESK_Y - 0.11, 0.235);
+
+  // ---------- CRT monitor ----------
+  const monitor = new THREE.Group();
+  monitor.position.set(0, DESK_Y, 0.05);
+  scene.add(monitor);
+  const BODY_Y = 0.245;
+  mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.015, 32), beigeDark, 0, 0.0075, -0.12, monitor);
+  box(0.09, 0.05, 0.1, beigeDark, 0, 0.04, -0.12, monitor);
+  box(0.42, 0.38, 0.07, beige, 0, BODY_Y, 0, monitor);                 // front bezel
+  box(0.37, 0.33, 0.2, beige, 0, BODY_Y + 0.005, -0.13, monitor);      // tube housing
+  box(0.27, 0.23, 0.14, beige, 0, BODY_Y + 0.015, -0.29, monitor);     // neck
+  // rear vents
+  for (let i = 0; i < 9; i++) box(0.2, 0.004, 0.002, slotBlack, 0, BODY_Y + 0.11 - i * 0.012, -0.361, monitor);
+  // recessed screen frame
+  mesh(new THREE.PlaneGeometry(0.36, 0.285), std(0x2a2720, 0.8), 0, BODY_Y + 0.015, 0.0352, monitor);
+
+  // screen texture (live canvas)
+  const scr = document.createElement("canvas"); scr.width = 640; scr.height = 480;
+  const sg = scr.getContext("2d");
+  const screenTex = new THREE.CanvasTexture(scr);
+  screenTex.encoding = THREE.sRGBEncoding;
+  const SW = 0.33, SH = 0.25;
+  const screenGeo = new THREE.PlaneGeometry(SW, SH, 24, 18);
+  {
+    const pos = screenGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i) / (SW / 2), y = pos.getY(i) / (SH / 2);
+      pos.setZ(i, 0.011 * (1 - x * x * 0.6) * (1 - y * y * 0.6));
+    }
+    screenGeo.computeVertexNormals();
+  }
+  const screen = new THREE.Mesh(screenGeo, new THREE.MeshBasicMaterial({ map: screenTex, color: 0xd8d8d8, toneMapped: false }));
+  screen.position.set(0, BODY_Y + 0.015, 0.036);
+  monitor.add(screen);
+  const SCREEN_WORLD = new THREE.Vector3(0, DESK_Y + BODY_Y + 0.015, 0.05 + 0.036 + 0.011);
+
+  // bezel controls
+  const ledMon = new THREE.MeshStandardMaterial({ color: 0x113311, emissive: 0x33ff55, emissiveIntensity: 1.6 });
+  box(0.024, 0.012, 0.006, beigeDark, 0.17, BODY_Y - 0.165, 0.036, monitor);
+  box(0.006, 0.004, 0.003, ledMon, 0.14, BODY_Y - 0.165, 0.036, monitor);
+  for (let i = 0; i < 4; i++) box(0.012, 0.007, 0.004, beigeDark, -0.17 + i * 0.018, BODY_Y - 0.165, 0.036, monitor);
+  const badge = canvasTex(256, 32, (g, w, h) => {
+    g.fillStyle = "#cdc3a2"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#6b6450"; g.font = "bold 20px Arial"; g.textAlign = "center"; g.fillText("SYNCVIEW 17", w/2, 23);
+  });
+  mesh(new THREE.PlaneGeometry(0.07, 0.009), new THREE.MeshStandardMaterial({ map: badge, roughness: 0.6 }), 0, BODY_Y - 0.165, 0.0352, monitor);
+
+  // sticky note
+  const noteTex = canvasTex(128, 128, (g, w, h) => {
+    g.fillStyle = "#e9d65a"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "rgba(0,0,0,.08)"; g.fillRect(0, 0, w, 14);
+    g.fillStyle = "#2a3a8a"; g.font = "italic 17px 'Comic Sans MS', cursive";
+    ["не забыть:", "залить", "портфолио!!"].forEach((t, i) => g.fillText(t, 10, 42 + i * 26));
+  });
+  const note = mesh(new THREE.PlaneGeometry(0.065, 0.065), std(0xffffff, 0.9, 0, { map: noteTex }), 0.198, BODY_Y + 0.155, 0.0365, monitor);
+  note.rotation.z = -0.18;
+
+  // ---------- keyboard ----------
+  const kb = new THREE.Group();
+  kb.position.set(-0.03, DESK_Y, 0.2);
+  kb.rotation.x = 0.04;
+  scene.add(kb);
+  box(0.46, 0.028, 0.18, beige, 0, 0.014, 0, kb);
+  {
+    const keyGeo = new THREE.BoxGeometry(0.023, 0.012, 0.022);
+    const keyMat = std(0xffffff, 0.5);
+    const keys = [];
+    const pitch = 0.0275;
+    // function row
+    for (let c = 0; c < 13; c++) keys.push([-0.193 + c * 0.03, -0.068, c === 0 ? 1 : 0]);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 15; c++) keys.push([-0.193 + c * pitch, -0.038 + r * pitch, c === 0 || c === 14 ? 1 : 0]);
+    for (const c of [0, 1, 2, 3, 11, 12, 13, 14]) keys.push([-0.193 + c * pitch, -0.038 + 4 * pitch, 1]);
+    const inst = new THREE.InstancedMesh(keyGeo, keyMat, keys.length);
+    const m4 = new THREE.Matrix4(), col = new THREE.Color();
+    keys.forEach(([x, z, mod], i) => {
+      m4.makeTranslation(x, 0.034, z); inst.setMatrixAt(i, m4);
+      inst.setColorAt(i, col.set(mod ? 0x9e9579 : 0xd6cdae));
+    });
+    inst.castShadow = inst.receiveShadow = true;
+    kb.add(inst);
+    box(0.19, 0.012, 0.022, std(0xd6cdae, 0.5), -0.193 + 7 * pitch, 0.034, -0.038 + 4 * pitch, kb); // spacebar
+  }
+
+  // ---------- mouse ----------
+  box(0.24, 0.004, 0.2, std(0x1d2433, 0.95), 0.36, DESK_Y + 0.002, 0.22);
+  const mouse = mesh(new THREE.SphereGeometry(1, 28, 18), beige, 0.36, DESK_Y + 0.006, 0.23);
+  mouse.scale.set(0.032, 0.022, 0.055);
+  box(0.0015, 0.004, 0.035, beigeDark, 0.36, DESK_Y + 0.026, 0.205);
+
+  const cable = (pts) => mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 64, 0.0028, 6),
+    std(0x9a937c, 0.6), 0, 0, 0);
+  cable([[0.36, DESK_Y + 0.012, 0.176], [0.35, DESK_Y + 0.004, 0.08], [0.25, DESK_Y + 0.004, -0.14], [-0.05, DESK_Y + 0.004, -0.36], [-0.5, DESK_Y + 0.12, -0.36]]);
+  cable([[-0.03, DESK_Y + 0.02, 0.11], [-0.08, DESK_Y + 0.004, 0.0], [-0.3, DESK_Y + 0.004, -0.25], [-0.5, DESK_Y + 0.1, -0.36]]);
+
+  // ---------- tower ----------
+  const tower = new THREE.Group();
+  tower.position.set(-0.62, DESK_Y, -0.12);
+  scene.add(tower);
+  box(0.2, 0.44, 0.46, beige, 0, 0.22, 0, tower);
+  const F = 0.231;
+  box(0.17, 0.042, 0.004, beigeDark, 0, 0.385, F, tower);
+  box(0.12, 0.004, 0.003, slotBlack, 0, 0.375, F + 0.002, tower);              // CD tray
+  box(0.17, 0.042, 0.004, beigeDark, 0, 0.338, F, tower);
+  box(0.1, 0.028, 0.004, beigeDark, 0.02, 0.292, F, tower);
+  box(0.075, 0.004, 0.003, slotBlack, 0.02, 0.296, F + 0.002, tower);           // floppy slot
+  box(0.012, 0.007, 0.004, beigeDark, 0.055, 0.284, F + 0.002, tower);
+  const powerBtnMat = std(0xa99f80, 0.6, 0, { emissive: 0xffb766, emissiveIntensity: 0 });
+  const powerBtn = mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.008, 24), powerBtnMat, 0, 0.21, F + 0.002, tower);
+  powerBtn.rotation.x = Math.PI / 2;
+  const POWER_Z = powerBtn.position.z;
+  // generous invisible hit target: the real button is ~12px wide from the chair
+  const powerHit = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.02, 12), new THREE.MeshBasicMaterial({ visible: false }));
+  powerHit.rotation.x = Math.PI / 2;
+  powerHit.position.set(0, 0.21, F + 0.006);
+  tower.add(powerHit);
+  const ledPower = new THREE.MeshStandardMaterial({ color: 0x113311, emissive: 0x33ff55, emissiveIntensity: 1.8 });
+  const ledHdd = new THREE.MeshStandardMaterial({ color: 0x331111, emissive: 0xff3322, emissiveIntensity: 0 });
+  box(0.006, 0.006, 0.003, ledPower, -0.02, 0.17, F + 0.002, tower);
+  box(0.006, 0.006, 0.003, ledHdd, 0.02, 0.17, F + 0.002, tower);
+  for (let i = 0; i < 8; i++) box(0.13, 0.003, 0.002, slotBlack, 0, 0.12 - i * 0.011, F + 0.002, tower);
+  const towerBadge = canvasTex(128, 32, (g, w, h) => {
+    g.fillStyle = "#2b5aa8"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#e8e8e8"; g.font = "bold 15px Arial"; g.textAlign = "center"; g.fillText("PENTIUM III", w/2, 21);
+  });
+  mesh(new THREE.PlaneGeometry(0.04, 0.01), new THREE.MeshStandardMaterial({ map: towerBadge, roughness: 0.4 }), 0.055, 0.25, F + 0.003, tower);
+
+  // ---------- speakers ----------
+  for (const sx of [-0.31, 0.3]) {
+    const sp = new THREE.Group(); sp.position.set(sx, DESK_Y, -0.04); sp.rotation.y = -sx * 0.6; scene.add(sp);
+    box(0.09, 0.16, 0.1, beige, 0, 0.08, 0, sp);
+    const cone = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.004, 24), std(0x2a2824, 0.95), 0, 0.095, 0.051, sp);
+    cone.rotation.x = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.004, 16), std(0x2a2824, 0.95), 0, 0.03, 0.051, sp).rotation.x = Math.PI / 2;
+  }
+
+  // ---------- desk clutter ----------
+  { // mug
+    const mug = new THREE.Group(); mug.position.set(0.58, DESK_Y, 0.08); scene.add(mug);
+    mesh(new THREE.CylinderGeometry(0.038, 0.035, 0.095, 28), std(0x7a1f1a, 0.35), 0, 0.0475, 0, mug);
+    mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.002, 28), std(0x1a0d06, 0.2), 0, 0.085, 0, mug);
+    const h = mesh(new THREE.TorusGeometry(0.025, 0.007, 10, 20, Math.PI), std(0x7a1f1a, 0.35), 0.038, 0.048, 0, mug);
+    h.rotation.z = -Math.PI / 2;
+  }
+  { // floppy stack
+    const colors = [0x1b1b1b, 0x2a4e8a, 0x8a2a2a, 0x1b1b1b];
+    colors.forEach((c, i) => {
+      const f = box(0.09, 0.0032, 0.094, std(c, 0.5), 0.5, DESK_Y + 0.0016 + i * 0.0033, -0.28);
+      f.rotation.y = (Math.random() - 0.5) * 0.4;
+      box(0.05, 0.0034, 0.03, std(0xa9acb0, 0.3, 0.8), 0, 0, -0.032, f);
+    });
+  }
+  { // CD lying on desk
+    const cd = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.0012, 48), std(0xc8ccd8, 0.15, 0.9), -0.33, DESK_Y + 0.001, 0.24);
+    mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.0014, 24), std(0x0b0b0b, 0.9), 0, 0, 0, cd);
+  }
+
+  // ---------- wall calendar ----------
+  {
+    const calTex = canvasTex(300, 420, (g, w, h) => {
+      g.fillStyle = "#e8e2d0"; g.fillRect(0, 0, w, h);
+      const sky = g.createLinearGradient(0, 0, 0, 190);
+      sky.addColorStop(0, "#1e3b6e"); sky.addColorStop(1, "#d9824a");
+      g.fillStyle = sky; g.fillRect(14, 14, w - 28, 180);
+      g.fillStyle = "#1c2a1c";
+      g.beginPath(); g.moveTo(14, 194); g.lineTo(80, 120); g.lineTo(140, 170); g.lineTo(210, 100); g.lineTo(w - 14, 160); g.lineTo(w - 14, 194); g.fill();
+      g.fillStyle = "#8a1d1d"; g.font = "bold 24px Arial"; g.textAlign = "center";
+      g.fillText("ОКТЯБРЬ 2003", w / 2, 228);
+      g.font = "14px Arial"; g.fillStyle = "#333";
+      const days = ["ПН","ВТ","СР","ЧТ","ПТ","СБ","ВС"];
+      days.forEach((d, i) => { g.fillStyle = i > 4 ? "#8a1d1d" : "#333"; g.fillText(d, 30 + i * 40, 256); });
+      for (let d = 1; d <= 31; d++) {
+        const idx = d + 1, col = idx % 7, row = Math.floor(idx / 7);
+        g.fillStyle = col > 4 ? "#8a1d1d" : "#333";
+        g.fillText(String(d), 30 + col * 40, 284 + row * 26);
+        if (d === 18) { g.strokeStyle = "#c22"; g.lineWidth = 2; g.beginPath(); g.arc(30 + col * 40, 279 + row * 26, 13, 0, 7); g.stroke(); }
+      }
+      noise(g, w, h, 10);
+    });
+    const cal = mesh(new THREE.PlaneGeometry(0.3, 0.42), std(0xffffff, 0.9, 0, { map: calTex }), -0.68, 1.58, -0.545);
+    cal.rotation.z = 0.02;
+    mesh(new THREE.SphereGeometry(0.006, 8, 8), std(0xcc2222, 0.4), -0.68, 1.795, -0.54);
+  }
+
+  // ---------- hanging bulb ----------
+  const bulbPivot = new THREE.Group();
+  bulbPivot.position.set(0.36, 3.0, 0.05);
+  scene.add(bulbPivot);
+  const CORD = 1.34;
+  mesh(new THREE.CylinderGeometry(0.003, 0.003, CORD, 6), std(0x111111, 0.6), 0, -CORD / 2, 0, bulbPivot);
+  mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.05, 16), std(0x2a2a2a, 0.5, 0.3), 0, -CORD - 0.02, 0, bulbPivot);
+  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xfff1d8, emissive: 0xffb766, emissiveIntensity: 2, roughness: 0.2 });
+  const bulb = mesh(new THREE.SphereGeometry(0.034, 24, 18), bulbMat, 0, -CORD - 0.07, 0, bulbPivot);
+  bulb.scale.set(1, 1.25, 1);
+  bulb.castShadow = false;
+
+  const lamp = new THREE.PointLight(0xffb766, 1.6, 5, 2);
+  lamp.position.set(0, -CORD - 0.07, 0);
+  lamp.castShadow = true;
+  lamp.shadow.mapSize.set(coarse ? 512 : 1024, coarse ? 512 : 1024);
+  lamp.shadow.bias = -0.002;
+  lamp.shadow.radius = 4;
+  lamp.shadow.camera.near = 0.05;
+  bulbPivot.add(lamp);
+
+  // ---------- other lights ----------
+  scene.add(new THREE.HemisphereLight(0x1c2233, 0x070504, 0.35));
+  const screenGlow = new THREE.PointLight(0x9fb8ff, 0.5, 1.6, 2);
+  screenGlow.position.copy(SCREEN_WORLD).add(new THREE.Vector3(0, 0, 0.25));
+  scene.add(screenGlow);
+
+  // ---------- screen content ----------
+  const PROMPT = [
+    "RETRO-DOS  Версия 6.22",
+    "",
+    "C:\\>dir /w PORTFOLIO",
+    "",
+    " [PROJECT1]   [PROJECT2]   [PROJECT3]",
+    " ABOUT.TXT    CONTACT.TXT",
+    "        5 файл(ов)",
+    "",
+  ];
+  const POST = [
+    "RetroBIOS v4.51PG, (C) 1984-2003",
+    "",
+    "Main Processor : Pentium III 800MHz",
+    "Memory Testing : {MEM}K OK",
+    "",
+    "Detecting IDE Primary Master ... QUANTUM 20GB",
+    "Detecting IDE Primary Slave  ... CD-ROM 52X",
+    "",
+    "Starting system...",
+  ];
+  let screenMode = "prompt", postStart = 0;
+  let pcOn = true, powerChanged = -1e9, nearBoot = false;
+  function drawOff(now) {
+    const g = sg, W = scr.width, H = scr.height;
+    const t = (now - powerChanged) / 1000;
+    g.fillStyle = "#060706"; g.fillRect(0, 0, W, H);
+    if (t < 0.22) {                             // picture collapses to a line
+      const k = 1 - t / 0.22, bh = Math.max(3, H * k * 0.9);
+      g.fillStyle = `rgba(220,235,220,${0.35 + 0.6 * (1 - k)})`;
+      g.fillRect(W * 0.04 * (1 - k), (H - bh) / 2, W - W * 0.08 * (1 - k), bh);
+    } else if (t < 1.1) {                       // then fades to a dot
+      const a = 1 - (t - 0.22) / 0.88;
+      const d = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 10 + 30 * a);
+      d.addColorStop(0, `rgba(240,255,240,${a})`); d.addColorStop(1, "rgba(240,255,240,0)");
+      g.fillStyle = d; g.fillRect(0, 0, W, H);
+    }
+    const r = g.createLinearGradient(0, 0, W, H);
+    r.addColorStop(0, "rgba(255,255,255,.05)"); r.addColorStop(0.35, "rgba(255,255,255,0)");
+    g.fillStyle = r; g.fillRect(0, 0, W, H);
+    screenTex.needsUpdate = true;
+  }
+  function drawScreen(now) {
+    if (!pcOn) { drawOff(now); return; }
+    const g = sg, W = scr.width, H = scr.height;
+    g.fillStyle = "#0a0d0b"; g.fillRect(0, 0, W, H);
+    g.font = "20px 'Courier New', monospace";
+    g.fillStyle = "#c4d4c0";
+    g.shadowColor = "rgba(180,255,190,.55)"; g.shadowBlur = 6;
+    const cursorOn = Math.floor(now / 530) % 2 === 0;
+    let lines;
+    if (screenMode === "prompt") {
+      lines = PROMPT.concat(["C:\\>" + (cursorOn ? "_" : "")]);
+    } else {
+      const t = Math.max(0, (now - postStart) / 1000);
+      const shown = Math.min(POST.length, Math.floor(t * 4.5));
+      if (t > POST.length / 4.5 + 1.4 && prog < 0.97) screenMode = "prompt";
+      const mem = Math.min(262144, Math.floor(t * 120000 / 1024) * 1024);
+      lines = POST.slice(0, shown).map(l => l.replace("{MEM}", String(mem).padStart(6, " ")));
+      if (shown >= POST.length && cursorOn) lines.push("_");
+    }
+    lines.forEach((l, i) => g.fillText(l, 34, 50 + i * 27));
+    g.shadowBlur = 0;
+    // scanlines
+    g.fillStyle = "rgba(0,0,0,.28)";
+    for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+    // tube vignette
+    const v = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.85);
+    v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.65)");
+    g.fillStyle = v; g.fillRect(0, 0, W, H);
+    // glass reflection
+    const r = g.createLinearGradient(0, 0, W, H);
+    r.addColorStop(0, "rgba(255,255,255,.06)"); r.addColorStop(0.35, "rgba(255,255,255,0)");
+    g.fillStyle = r; g.fillRect(0, 0, W, H);
+    // CRT warm-up: picture opens from a horizontal line
+    const warm = (now - powerChanged) / 350;
+    if (warm < 1) {
+      const bh = H * Math.max(0.01, warm);
+      g.fillStyle = "#060706";
+      g.fillRect(0, 0, W, (H - bh) / 2); g.fillRect(0, (H + bh) / 2, W, H);
+    }
+    screenTex.needsUpdate = true;
+  }
+
+  // ---------- power button ----------
+  let actx, pressT = -1e9;
+  function sfx(on) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = actx.currentTime;
+      const buf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.03), actx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 4);
+      const click = actx.createBufferSource(); click.buffer = buf;
+      const cg = actx.createGain(); cg.gain.value = 0.35;
+      click.connect(cg).connect(actx.destination); click.start(t0);
+      if (on) {                                   // degauss thunk
+        const o = actx.createOscillator(); o.type = "sawtooth"; o.frequency.value = 60;
+        const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 220;
+        const og = actx.createGain();
+        og.gain.setValueAtTime(0, t0 + 0.25);
+        og.gain.linearRampToValueAtTime(0.2, t0 + 0.3);
+        og.gain.exponentialRampToValueAtTime(0.001, t0 + 1.1);
+        o.connect(lp).connect(og).connect(actx.destination); o.start(t0 + 0.25); o.stop(t0 + 1.2);
+      }
+    } catch (err) { /* no audio, no problem */ }
+  }
+  function setPower(on) {
+    pcOn = on;
+    powerChanged = performance.now();
+    if (on) { screenMode = "post"; postStart = powerChanged + 400; }
+    ledPower.emissiveIntensity = on ? 1.8 : 0;
+    ledMon.emissive.set(on ? 0x33ff55 : 0xffaa22);   // amber = monitor standby
+    ledMon.emissiveIntensity = on ? 1.6 : 1.1;
+  }
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function overPower(x, y) {
+    ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    return ray.intersectObject(powerHit).length > 0;
+  }
+  addEventListener("pointermove", e => {
+    const over = overPower(e.clientX, e.clientY);
+    canvas.style.cursor = over ? "pointer" : "";
+    powerBtnMat.emissiveIntensity = over ? 0.35 : 0;
+  });
+  addEventListener("click", e => {
+    if (!overPower(e.clientX, e.clientY)) return;
+    pressT = performance.now();
+    setPower(!pcOn);
+    sfx(pcOn);
+  });
+
+  // ---------- camera path ----------
+  const P0 = new THREE.Vector3(0, 1.1, 2.1);
+  const P1 = new THREE.Vector3(0, 1.06, 0.9);
+  const P2 = new THREE.Vector3();
+  const L0 = new THREE.Vector3(0, 1.1, -0.05);    // level gaze, no pitch
+  const tmp = new THREE.Vector3(), look = new THREE.Vector3();
+
+  function resize() {
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    // tall screens: step back and widen the lens so the whole desk stays in frame
+    P0.z = camera.aspect < 1.2 ? 2.5 : 2.1;
+    const fit = THREE.MathUtils.radToDeg(2 * Math.atan(0.9 / (P0.z * camera.aspect)));
+    camera.fov = Math.min(66, Math.max(42, fit));
+    camera.updateProjectionMatrix();
+    const tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const dFitH = (SH / 2) / tanH;
+    const dFitW = (SW / 2) / (tanH * camera.aspect);
+    P2.set(SCREEN_WORLD.x, SCREEN_WORLD.y, SCREEN_WORLD.z + Math.max(dFitH, dFitW) * 1.04);
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  let target = 0, prog = 0;
+  const readScroll = () => {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    target = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
+  };
+  addEventListener("scroll", readScroll, { passive: true });
+  readScroll();
+
+  let mx = 0, my = 0, smx = 0, smy = 0;
+  addEventListener("pointermove", e => { mx = e.clientX / innerWidth * 2 - 1; my = e.clientY / innerHeight * 2 - 1; });
+
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const hint = document.getElementById("hint");
+  if (coarse) hint.firstElementChild.textContent = "ЛИСТАЙ ВНИЗ — САДИСЬ ЗА КОМП";
+
+  // ---------- lamp flicker ----------
+  let flickerLeft = 0, flickerVal = 1;
+  function lampLevel(t, dt) {
+    if (reduceMotion) return 1;
+    let lvl = 1 + Math.sin(t * 47) * 0.012 + (Math.random() - 0.5) * 0.025;
+    if (flickerLeft <= 0 && Math.random() < dt * 0.3) flickerLeft = 0.12 + Math.random() * 0.7;
+    if (flickerLeft > 0) {
+      flickerLeft -= dt;
+      if (Math.random() < 0.35) flickerVal = Math.random() < 0.5 ? 0.08 + Math.random() * 0.25 : 1;
+      lvl *= flickerVal;
+    } else flickerVal = 1;
+    return lvl;
+  }
+
+  // ---------- loop ----------
+  const clock = new THREE.Clock();
+  let hddTimer = 0, lastDraw = 0;
+  function frame() {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+    const now = performance.now();
+
+    prog += (target - prog) * Math.min(1, dt * 5);
+    if (Math.abs(target - prog) < 1e-4) prog = target;
+    const e = ease(prog);
+
+    // bezier dolly toward the screen
+    const a = 1 - e;
+    tmp.set(0, 0, 0)
+      .addScaledVector(P0, a * a)
+      .addScaledVector(P1, 2 * a * e)
+      .addScaledVector(P2, e * e);
+    smx += (mx - smx) * dt * 3; smy += (my - smy) * dt * 3;
+    const par = (1 - e) * (reduceMotion ? 0 : 1);
+    tmp.x += smx * 0.04 * par; tmp.y -= smy * 0.02 * par;
+    if (!reduceMotion) tmp.y += Math.sin(t * 0.9) * 0.004 * par;   // breathing
+    camera.position.copy(tmp);
+    look.lerpVectors(L0, SCREEN_WORLD, e);
+    camera.lookAt(look);
+    // head turn: glance toward the cursor
+    camera.rotateY(-smx * 0.09 * par);
+    camera.rotateX(-smy * 0.06 * par);
+
+    // lamp
+    const lvl = lampLevel(t, dt);
+    lamp.intensity = 1.6 * lvl;
+    bulbMat.emissiveIntensity = 2.2 * lvl;
+    if (!reduceMotion) {
+      bulbPivot.rotation.z = Math.sin(t * 0.55) * 0.035;
+      bulbPivot.rotation.x = Math.sin(t * 0.41 + 1) * 0.025;
+    }
+
+    // HDD activity
+    hddTimer -= dt;
+    powerBtn.position.z = POWER_Z - (now - pressT < 140 ? 0.004 : 0);
+    if (hddTimer <= 0) { ledHdd.emissiveIntensity = pcOn && Math.random() < 0.3 ? 2 : 0; hddTimer = 0.05 + Math.random() * (screenMode === "post" ? 0.1 : 0.9); }
+
+    // screen state: POST kicks in when we're nose-to-glass
+    if (prog > 0.97 && !nearBoot) {
+      nearBoot = true;
+      if (pcOn) { screenMode = "post"; postStart = now; } else setPower(true);
+    }
+    if (prog < 0.9) nearBoot = false;
+    const glowK = pcOn ? Math.min(1, (now - powerChanged) / 400) : 0;
+    screenGlow.intensity = (0.45 + Math.sin(t * 60) * 0.02) * (screenMode === "post" ? 0.7 : 1) * glowK;
+    const covered = window.RetroOS && window.RetroOS.covering;
+    if (!covered && now - lastDraw > 66) { drawScreen(now); lastDraw = now; }
+
+    // POST finished while we're at the glass: hand over to the OS layer
+    if (!osShown && pcOn && screenMode === "post" && prog > 0.97 &&
+        (now - postStart) / 1000 > POST.length / 4.5 + 0.9) {
+      osShown = true;
+      window.RetroOS && window.RetroOS.boot();
+    }
+
+    hint.style.opacity = String(Math.max(0, 1 - prog * 12));
+
+    if (!(window.RetroOS && window.RetroOS.covering)) renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  let osShown = false;
+  addEventListener("retro-os-exit", () => { osShown = false; screenMode = "prompt"; });
+  drawScreen(performance.now());
+  requestAnimationFrame(frame);
+  setTimeout(() => document.getElementById("loader").classList.add("gone"), 300);
+})();
+</script>
+
+<script>
+/* ===================== inv1zel.log ===================== */
+(() => {
+  // ---- your content: edit here ----
+  const ME = {
+    name: "Александр",
+    login: "you",
+    role: "Веб-разработчик · Digital-дизайнер",
+    city: "",
+    about: [
+      "Создаю сайты, которые выходят за рамки обычных шаблонов. Мне интересны необычные визуальные решения, тёмная эстетика, интерактивные интерфейсы и анимации, превращающие просмотр сайта в отдельный опыт. Работаю на стыке веб-разработки и дизайна, экспериментирую с формой, светом, типографикой и цифровыми пространствами.",
+      "В работе для меня важны детали, атмосфера и идея, которая стоит за каждым проектом. Люблю превращать абстрактные концепции в работающие сайты — от минималистичных портфолио до экспериментальных интерактивных пространств. Постоянно изучаю новые инструменты, развиваю навыки и ищу способы сделать каждый следующий проект интереснее предыдущего.",
+    ],
+    skills: [["HTML / CSS", 9], ["JavaScript", 8], ["React", 7], ["Three.js", 6], ["Figma", 6]],
+  };
+  const CONTACTS = {
+    telegram: "inv1zelLog",
+  };
+  const PROJECTS = [
+    { dir: "Aurum_Dental", title: "Aurum Dental", year: "2026", role: "Дизайн и разработка",
+      stack: ["HTML", "CSS", "JavaScript", "three.js", "GSAP"], url: "https://inv1zel.github.io/aurum-dental/",
+      shot: { theme: "gold", tagline: "Стоматология премиум-класса", cta: "Записаться на приём" },
+      desc: "Сайт премиальной стоматологии с рабочей онлайн-записью, панелью для клиники и собственными 3D-сценами.",
+      points: [
+        ["Запись без личных данных.", "Посетитель выбирает услуги, врача и время и получает талон с номером и QR-кодом. Запись можно перенести или отменить. На сайте нет ни одного поля ввода, ничего не собирается и не хранится."],
+        ["Логика как в настоящей клинике.", "Сайт предлагает только тех врачей, которые делают все выбранные услуги, и показывает только окна, куда визит помещается целиком, с учётом обеда и выходных. Калькулятор сразу считает сумму и длительность."],
+        ["Две стороны продукта.", "Кроме сайта для пациента есть панель клиники: сетка приёмов, загрузка врачей, выручка, отмена записей и закрытие слотов. Всё, что делает администратор, сразу отражается в записи у посетителя."],
+        ["Премиальный вид.", "Тёмная гамма с золотом, свои 3D-сцены на three.js: живой зуб и имплант, который разбирается при прокрутке. Анимации на GSAP, свой курсор, магнитные кнопки. Картинки — собственные 3D-рендеры, без стоковых фото."],
+        ["Удобно на телефоне.", "Отдельно проработана мобильная версия: нижняя панель с суммой и кнопкой «Далее», страница нигде не вылезает по ширине."],
+        ["Проверено автотестами.", "46 автоматических проверок всех сценариев проходят на телефоне и на компьютере."],
+        ["Базовая защита.", "Строгая политика безопасности браузера (CSP), проверка целостности библиотек, защита от встраивания в чужие сайты, запрет ИИ-краулерам в robots.txt."],
+        ["Без сервера и сборки.", "Чистые HTML, CSS и JS, все библиотеки внутри проекта. Сайт работает на бесплатном GitHub Pages."],
+      ] },
+    { dir: "Obsidian_Atelier", title: "Obsidian Atelier", year: "2026", role: "Дизайн и разработка",
+      stack: [], url: "https://inv1zel.github.io/obsidian-atelier/",
+      shot: { theme: "carbon", tagline: "Детейлинг-ателье", cta: "Записаться" },
+      desc: "Сайт премиальной детейлинг-студии: кинематографичное интро, живые фото и онлайн-запись в четыре шага.",
+      points: [
+        "Премиальный узнаваемый стиль: графит, металл, карбон.",
+        "Кинематографичное интро с синтезированным звуком двигателя.",
+        "Живые фото: фары, мерцающий свет, пыль, параллакс.",
+        "Интерактив: слайдер «до/после» и палитра плёнок.",
+        "Удобная запись в 4 шага с талоном и разделом «Мои визиты».",
+        "Полная мобильная версия, проверенная на телефонах.",
+        "Никаких персональных данных и встроенная защита.",
+      ] },
+    { dir: "Nocturne", title: "Nocturne", year: "2026", role: "Дизайн и разработка",
+      stack: ["React", "TypeScript", "Vite", "GSAP", "GLSL"], url: "https://inv1zel.github.io/inv1zel-nocturne/",
+      shot: { theme: "nocturne", tagline: "Selected works", cta: "View project" },
+      desc: "Атмосферное портфолио вымышленной студии: изображения, сгенерированные кодом, выразительная типографика и кинематографичные переходы.",
+      points: [
+        ["Уникальные изображения.", "Ни одного стокового фото: все 14 картинок сгенерированы кодом (GLSL), поэтому нет проблем с авторскими правами."],
+        ["Типографика как главный элемент.", "Тонкая контрастная антиква Cormorant, нейтральный Inter для интерфейса и моноширинный JetBrains Mono для подписей."],
+        ["Анимации.", "Intro, построчное появление текста, раскрытие изображений, параллакс. Переход в проект сделан так, что картинка карточки раскрывается на весь экран и становится обложкой страницы."],
+        ["Кастомный курсор.", "На карточках проектов он показывает «View project». Включается только при управлении мышью."],
+        ["Скорость.", "Все изображения вместе весят около 1 МБ (AVIF/WebP с подбором размера под экран). Шрифты подключены локально."],
+        ["Адаптивность.", "Проверено на ширинах 360, 390, 820 и 1440 px, горизонтального скролла нет."],
+        ["Доступность.", "Работает навигация с клавиатуры, фокус виден, есть ссылка «Skip to content». Если в системе включено уменьшение анимации, сайт её отключает."],
+        ["Без ошибок.", "Консоль чистая, нерабочих ссылок нет, неизвестные адреса ведут на страницу 404."],
+        ["Безопасность и честность.", "Никаких форм, почты и трекинга, сайт ничего не собирает. Дисклеймер о вымысле есть в колофоне, меню и футере."],
+        ["Аккуратный код.", "React, TypeScript, Vite и GSAP. Код разбит на отдельные компоненты с общими дизайн-токенами, анимации корректно очищаются."],
+        ["Легко менять.", "Тексты проектов лежат в одном файле. Любую картинку можно заменить: положите фото в art-source/ и выполните одну команду."],
+        ["Выложить можно куда угодно.", "Готовы настройки для GitHub Pages, Vercel и Netlify."],
+      ] },
+  ];
+
+  const OS = { name: "inv1zel.log", host: "inv1zel", wm: "ghost-wm" };
+
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (s, r = document) => r.querySelector(s);
+  document.querySelectorAll("[data-osname]").forEach(n => { n.textContent = OS.name; n.dataset.text = OS.name; });
+  document.querySelectorAll("[data-oshost]").forEach(n => { n.textContent = OS.host; });
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const touchUI = matchMedia("(hover: none)").matches;
+  const small = () => innerWidth <= 640 || innerHeight <= 500;   // phones, either orientation
+
+  // ---- pixel icons ----
+  const svg = (body, vb = 32) => `<svg viewBox="0 0 ${vb} ${vb}" shape-rendering="crispEdges" aria-hidden="true">${body}</svg>`;
+  const ICON = {
+    who: svg(`<rect x="3" y="5" width="26" height="20" fill="#1a1a1a"/><rect x="5" y="7" width="22" height="16" fill="#0c100d"/>
+      <rect x="7" y="10" width="2" height="2" fill="#5fd35f"/><rect x="9" y="12" width="2" height="2" fill="#5fd35f"/><rect x="7" y="14" width="2" height="2" fill="#5fd35f"/>
+      <rect x="13" y="15" width="7" height="2" fill="#5fd35f"/><rect x="11" y="25" width="10" height="2" fill="#807b6d"/><rect x="7" y="27" width="18" height="2" fill="#c6c2b6"/>`),
+    folder: svg(`<rect x="3" y="7" width="11" height="4" fill="#c8962e"/><rect x="3" y="10" width="26" height="17" fill="#e7b84a"/>
+      <rect x="3" y="10" width="26" height="2" fill="#f6d77e"/><rect x="3" y="26" width="26" height="1" fill="#8a6216"/>`),
+    mail: svg(`<rect x="3" y="8" width="26" height="17" fill="#f6f4ec"/><rect x="3" y="8" width="26" height="1" fill="#807b6d"/>
+      <rect x="3" y="24" width="26" height="1" fill="#807b6d"/>
+      <path d="M3 9 L16 18 L29 9" fill="none" stroke="#b8322a" stroke-width="2"/><rect x="22" y="4" width="8" height="8" fill="#b8322a"/><rect x="25" y="6" width="2" height="4" fill="#fff"/>`),
+    trash: svg(`<rect x="8" y="9" width="16" height="19" fill="#9aa1a6"/><rect x="6" y="6" width="20" height="3" fill="#6b7277"/><rect x="13" y="4" width="6" height="2" fill="#6b7277"/>
+      <rect x="11" y="12" width="2" height="13" fill="#6b7277"/><rect x="15" y="12" width="2" height="13" fill="#6b7277"/><rect x="19" y="12" width="2" height="13" fill="#6b7277"/>`),
+    info: svg(`<rect x="4" y="4" width="24" height="24" fill="#1b3a6b"/><rect x="15" y="8" width="3" height="3" fill="#fff"/><rect x="15" y="13" width="3" height="11" fill="#fff"/><rect x="13" y="13" width="2" height="2" fill="#fff"/><rect x="13" y="22" width="7" height="2" fill="#fff"/>`),
+    globe: svg(`<circle cx="16" cy="16" r="12" fill="#2a6fb0"/><path d="M8 9h7v5h-4v4H7z M18 7h5l3 5-4 2-2 5h-3v-6z M14 22h6v4h-5z" fill="#55a84c"/>
+      <circle cx="16" cy="16" r="12" fill="none" stroke="#10243a"/><rect x="20" y="20" width="9" height="9" fill="#eee"/><path d="M22 22 h5 v1 h-5z M22 24 h5 v1 h-5z M22 26 h3 v1 h-3z" fill="#555"/>`),
+    games: svg(`<rect x="3" y="10" width="26" height="14" fill="#4b4e54"/><rect x="5" y="12" width="22" height="10" fill="#777b82"/>
+      <rect x="7" y="16" width="7" height="2" fill="#111"/><rect x="9.5" y="13.5" width="2" height="7" fill="#111"/><rect x="20" y="14" width="3" height="3" fill="#c33"/><rect x="23" y="17" width="3" height="3" fill="#3a3"/>`),
+    mine: svg(`<rect x="15" y="4" width="2" height="24" fill="#111"/><rect x="4" y="15" width="24" height="2" fill="#111"/>
+      <rect x="8" y="8" width="2" height="2" fill="#111"/><rect x="22" y="8" width="2" height="2" fill="#111"/><rect x="8" y="22" width="2" height="2" fill="#111"/><rect x="22" y="22" width="2" height="2" fill="#111"/>
+      <circle cx="16" cy="16" r="8" fill="#111"/><rect x="12" y="12" width="3" height="3" fill="#fff"/>`),
+    snake: svg(`<rect x="2" y="4" width="28" height="24" fill="#c7d9a7"/><g fill="#2e3b22"><rect x="5" y="20" width="4" height="4"/><rect x="9" y="20" width="4" height="4"/>
+      <rect x="13" y="20" width="4" height="4"/><rect x="13" y="16" width="4" height="4"/><rect x="13" y="12" width="4" height="4"/><rect x="17" y="12" width="4" height="4"/>
+      <rect x="21" y="12" width="4" height="4"/><rect x="24" y="6" width="3" height="3"/></g>`),
+    power: svg(`<rect x="5" y="5" width="22" height="22" fill="#b8322a"/><path d="M11 12 a7 7 0 1 0 10 0" fill="none" stroke="#fff" stroke-width="3"/><rect x="14.5" y="8" width="3" height="9" fill="#fff"/>`),
+    min: `<svg viewBox="0 0 8 8" aria-hidden="true"><rect x="1" y="6" width="6" height="2" fill="currentColor"/></svg>`,
+    max: `<svg viewBox="0 0 8 8" aria-hidden="true"><rect x=".5" y=".5" width="7" height="7" fill="none" stroke="currentColor"/><rect x="0" y="0" width="8" height="2" fill="currentColor"/></svg>`,
+    close: `<svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.6"/></svg>`,
+  };
+
+  // ---- apps ----
+  const APPS = {
+    who: { title: "whoami — Обо мне", label: "Обо мне", icon: ICON.who, w: 600, h: 440, menu: false, render: renderWho },
+    files: { title: "Файлы", label: "Файлы", icon: ICON.folder, w: 760, h: 540, render: renderFiles },
+    mail: { title: "Почта — Входящие", label: "Почта", icon: ICON.mail, w: 700, h: 460, render: renderMail },
+    browser: { title: "Сёрфер 4.0", label: "Интернет", icon: ICON.globe, w: 780, h: 540, render: renderBrowser },
+    games: { title: "Игры", label: "Игры", icon: ICON.games, w: 320, h: 200, render: renderGames },
+    mines: { title: "Сапёр", label: "Сапёр", icon: ICON.mine, w: 250, h: 340, menu: false, auto: true, render: renderMines },
+    snake: { title: "Змейка", label: "Змейка", icon: ICON.snake, w: 340, h: 500, menu: false, auto: true, render: renderSnake },
+    trash: { title: "Корзина", label: "Корзина", icon: ICON.trash, w: 360, h: 190, render: renderTrash },
+  };
+  const DESKTOP = ["who", "files", "mail", "browser", "games", "trash"];
+
+  const os = $("#os"), desk = $("#osDesk"), area = $("#osArea"), bootEl = $("#osBoot");
+  const tasks = $("#osTasks"), menu = $("#osMenu"), startBtn = $("#osStart");
+  const wins = new Map();   // id -> { el, task, app }
+  let z = 10, cascade = 0;
+
+  // ---- animated wallpaper: brushed graphite with metal dust (raw WebGL) ----
+  const wall = (() => {
+    const canvas = $("#osWall");
+    const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+    let raf = 0, t0 = performance.now(), uRes, uT, fallback = !gl;
+    if (gl) {
+      const vs = `attribute vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }`;
+      const fs = `precision mediump float;
+        uniform vec2 res; uniform float t;
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float vnoise(vec2 p){
+          vec2 i = floor(p), f = fract(p); f = f*f*(3. - 2.*f);
+          return mix(mix(hash(i), hash(i + vec2(1.,0.)), f.x), mix(hash(i + vec2(0.,1.)), hash(i + vec2(1.,1.)), f.x), f.y);
+        }
+        float field(vec2 p){                       // slow liquid-metal swell
+          float h = sin(p.x*3.2 + t*.25 + sin(p.y*2.1 + t*.17)*1.4)*.35;
+          h += sin(p.y*4.3 - t*.3 + sin(p.x*2.6 - t*.13)*1.2)*.25;
+          return h;
+        }
+        void main(){
+          vec2 uv = gl_FragCoord.xy / res;
+          vec2 p = (gl_FragCoord.xy - .5*res) / res.y;
+          float e = 1.5 / res.y;
+          float h = field(p);
+          vec3 n = normalize(vec3(field(p - vec2(e,0.)) - field(p + vec2(e,0.)), field(p - vec2(0.,e)) - field(p + vec2(0.,e)), e*14.));
+          vec2 q = p + n.xy*.03;                   // the swell bends the brushed grain
+          float brush = vnoise(vec2(q.x*2.5, q.y*420.))*.6 + vnoise(vec2(q.x*8., q.y*1300.))*.4;
+          vec3 col = mix(vec3(.085,.087,.092), vec3(.165,.167,.172), brush);
+          float sheen = exp(-pow((q.y - .18 + n.y*.25)*2.6, 2.));          // anisotropic band of light
+          col += vec3(.16) * sheen * (.6 + .4*brush);
+          vec3 L = normalize(vec3(-.3, .5, .8));
+          float spec = pow(max(dot(reflect(-L, n), vec3(0.,0.,1.)), 0.), 30.);
+          col += vec3(.75) * spec * .22;
+          vec2 cell = floor(gl_FragCoord.xy / 2.);                           // metal dust specks
+          float r = hash(cell);
+          float tw = sin(t*1.3 + r*60. + h*5.)*.5 + .5;
+          col += vec3(.9) * step(.988, r) * pow(tw, 6.) * (.35 + spec*2. + sheen*.6);
+          col += vec3(.04) * step(.97, r);
+          col *= .94 + .06*sin(gl_FragCoord.y*3.14159);
+          col *= 1. - .45*pow(length(uv - .5), 1.5);
+          gl_FragColor = vec4(col, 1.);
+        }`;
+      const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+      const prog = gl.createProgram();
+      gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) fallback = true;
+      else {
+        gl.useProgram(prog);
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, "p");
+        gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        uRes = gl.getUniformLocation(prog, "res"); uT = gl.getUniformLocation(prog, "t");
+      }
+    }
+    if (fallback) canvas.style.background = "radial-gradient(ellipse at 50% 30%, #2a2b2e, #111214 70%)";
+    const SCALE = 0.6;   // render under-resolution: softer, cheaper, more 2003
+    function size() {
+      const w = Math.max(1, Math.round(canvas.clientWidth * SCALE)), h = Math.max(1, Math.round(canvas.clientHeight * SCALE));
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    }
+    function draw() {
+      if (fallback) return;
+      size();
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.uniform1f(uT, reduceMotion ? 12 : (performance.now() - t0) / 1000);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    const hiddenByWindow = () => !!area.querySelector(".win.max:not([hidden])");
+    const minGap = matchMedia("(hover: none)").matches ? 33 : 0;
+    let last = 0;
+    function loop(now = 0) {
+      if (now - last >= minGap && !hiddenByWindow()) { draw(); last = now; }
+      raf = reduceMotion ? 0 : requestAnimationFrame(loop);
+    }
+    return {
+      canvas,
+      start() { if (!raf) loop(); },
+      stop() { cancelAnimationFrame(raf); raf = 0; },
+    };
+  })();
+
+  // desktop icons
+  $("#osIcons").innerHTML = DESKTOP.map(id =>
+    `<button class="os-icon" data-app="${id}">${APPS[id].icon}<span>${APPS[id].label}</span></button>`).join("");
+  bindIcons($("#osIcons"), id => openApp(id));
+
+  // start menu
+  menu.innerHTML = `<div class="side">${esc(OS.name)}</div>` +
+    DESKTOP.filter(id => id !== "trash").map(id => `<button role="menuitem" data-app="${id}">${APPS[id].icon}${APPS[id].label}</button>`).join("") +
+    `<hr><button role="menuitem" data-act="about">${ICON.info}О системе</button>` +
+    `<button role="menuitem" data-act="exit">${ICON.power}Встать из-за компа</button>`;
+  startBtn.addEventListener("click", e => { e.stopPropagation(); toggleMenu(); });
+  menu.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    toggleMenu(false);
+    if (b.dataset.app) openApp(b.dataset.app);
+    else if (b.dataset.act === "about") openDialog("sys", "О системе", ICON.info,
+      `<p><b>${esc(OS.name)} 2.4.22</b><br>Ядро собрано вручную, X11R6, оконный менеджер ${esc(OS.wm)}.</p><p>256 МБ ОЗУ, из них 200 занимает этот сайт.</p>`);
+    else if (b.dataset.act === "exit") exit();
+  });
+  document.addEventListener("click", e => { if (!menu.hidden && !menu.contains(e.target)) toggleMenu(false); });
+  function toggleMenu(force) {
+    const open = force ?? menu.hidden;
+    menu.hidden = !open; startBtn.classList.toggle("on", open);
+    startBtn.setAttribute("aria-expanded", String(open));
+  }
+
+  // click to select, double-click (or tap on touch) to open
+  function bindIcons(root, open) {
+    root.addEventListener("click", e => {
+      const b = e.target.closest(".os-icon"); if (!b) return;
+      root.querySelectorAll(".os-icon.sel").forEach(x => x.classList.remove("sel"));
+      b.classList.add("sel");
+      if (touchUI || e.detail === 0) open(b.dataset.app);   // detail 0 = keyboard Enter/Space
+    });
+    root.addEventListener("dblclick", e => { const b = e.target.closest(".os-icon"); if (b) open(b.dataset.app); });
+  }
+  area.addEventListener("pointerdown", e => {
+    if (e.target === area || e.target === wall.canvas) area.querySelectorAll(".os-icon.sel").forEach(x => x.classList.remove("sel"));
+  });
+
+  // ---- window manager ----
+  function openApp(id) {
+    if (wins.has(id)) { const w = wins.get(id); w.el.hidden = false; focus(id); return w; }
+    const app = APPS[id];
+    const rec = createWindow(id, app.title, app.icon, app.w, app.h, app.render, app.menu !== false);
+    if (app.auto && !small()) { rec.el.style.width = "auto"; rec.el.style.height = "auto"; }
+    return rec;
+  }
+  function createWindow(id, title, icon, w, h, render, withMenu) {
+    const el = document.createElement("section");
+    el.className = "win";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-label", title);
+    el.innerHTML = `
+      <header class="win-bar">${icon}<span class="win-title">${esc(title)}</span>
+        <div class="win-btns">
+          <button data-act="min" aria-label="Свернуть">${ICON.min}</button>
+          <button data-act="max" aria-label="Развернуть">${ICON.max}</button>
+          <button data-act="close" aria-label="Закрыть">${ICON.close}</button>
+        </div></header>
+      ${withMenu ? `<nav class="win-menu"><span>Файл</span><span>Правка</span><span>Вид</span><span>Справка</span></nav>` : ""}
+      <div class="win-body"></div>
+      <footer class="win-status"><span></span><span></span></footer>`;
+    const A = area.getBoundingClientRect();
+    const W = Math.min(w, A.width - 16), H = Math.min(h, A.height - 16);
+    const x = Math.max(8, Math.min(A.width - W - 8, (A.width - W) / 2 + (cascade % 5) * 26 - 52));
+    const y = Math.max(8, Math.min(A.height - H - 8, (A.height - H) / 2 + (cascade % 5) * 22 - 44));
+    cascade++;
+    Object.assign(el.style, { left: x + "px", top: y + "px", width: W + "px", height: H + "px" });
+    if (small()) { el.classList.add("max"); el.dataset.automax = "1"; }
+    area.appendChild(el);
+
+    const task = document.createElement("button");
+    task.className = "btn";
+    task.innerHTML = `${icon}<span>${esc(title.split(" — ")[0])}</span>`;
+    task.addEventListener("click", () => {
+      const active = el.classList.contains("active") && !el.hidden;
+      if (active) minimize(id); else { el.hidden = false; focus(id); }
+    });
+    tasks.appendChild(task);
+
+    const rec = { el, task, body: $(".win-body", el), status: $(".win-status", el) };
+    wins.set(id, rec);
+    el.addEventListener("pointerdown", () => focus(id));
+    $(".win-btns", el).addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.act === "close") close(id);
+      if (b.dataset.act === "min") minimize(id);
+      if (b.dataset.act === "max" && !small()) el.classList.toggle("max");
+    });
+    $(".win-bar", el).addEventListener("dblclick", e => { if (!e.target.closest("button") && !small()) el.classList.toggle("max"); });
+    makeDraggable(el);
+    render(rec);
+    focus(id);
+    return rec;
+  }
+  // keep windows usable when the screen rotates or the browser is resized
+  addEventListener("resize", () => {
+    if (os.hidden) return;
+    const A = area.getBoundingClientRect();
+    wins.forEach(w => {
+      const el = w.el;
+      if (el.classList.contains("dlg-win")) {
+        el.style.width = Math.min(380, A.width - 16) + "px";
+      } else if (small()) {
+        if (!el.classList.contains("max")) { el.classList.add("max"); el.dataset.automax = "1"; }
+        return;
+      } else if (el.dataset.automax) {
+        el.classList.remove("max"); delete el.dataset.automax;
+      }
+      if (el.classList.contains("max")) return;
+      if (el.style.width !== "auto") el.style.width = Math.min(parseFloat(el.style.width) || el.offsetWidth, A.width - 16) + "px";
+      if (el.style.height !== "auto") el.style.height = Math.min(parseFloat(el.style.height) || el.offsetHeight, A.height - 16) + "px";
+      el.style.left = Math.max(8, Math.min(el.offsetLeft, A.width - el.offsetWidth - 8)) + "px";
+      el.style.top = Math.max(0, Math.min(el.offsetTop, A.height - el.offsetHeight - 8)) + "px";
+    });
+  });
+
+  function focus(id) {
+    wins.forEach((w, k) => { w.el.classList.toggle("active", k === id); w.task.classList.toggle("on", k === id); });
+    const w = wins.get(id); if (w) w.el.style.zIndex = ++z;
+  }
+  function minimize(id) {
+    const w = wins.get(id); w.el.hidden = true; w.el.classList.remove("active"); w.task.classList.remove("on");
+  }
+  function close(id) {
+    const w = wins.get(id); if (!w) return;
+    if (w.onClose) w.onClose();
+    w.el.remove(); w.task.remove(); wins.delete(id);
+  }
+  function makeDraggable(el) {
+    const bar = $(".win-bar", el);
+    let sx, sy, ox, oy, dragging = false;
+    bar.addEventListener("pointerdown", e => {
+      if (e.target.closest("button") || el.classList.contains("max") || e.button !== 0) return;
+      dragging = true; bar.setPointerCapture(e.pointerId);
+      sx = e.clientX; sy = e.clientY; ox = el.offsetLeft; oy = el.offsetTop;
+    });
+    bar.addEventListener("pointermove", e => {
+      if (!dragging) return;
+      const A = area.getBoundingClientRect();
+      const nx = Math.max(80 - el.offsetWidth, Math.min(A.width - 80, ox + e.clientX - sx));
+      const ny = Math.max(0, Math.min(A.height - 24, oy + e.clientY - sy));
+      el.style.left = nx + "px"; el.style.top = ny + "px";
+    });
+    const stop = () => { dragging = false; };
+    bar.addEventListener("pointerup", stop); bar.addEventListener("pointercancel", stop);
+  }
+  function status(rec, left, right = "") {
+    const s = rec.status.children; s[0].textContent = left; s[1].textContent = right;
+  }
+  function openDialog(id, title, icon, html) {
+    close(id);
+    const rec = createWindow(id, title, icon, 380, 200, r => {
+      r.body.innerHTML = `<div class="dlg">${icon}<div>${html}</div><div class="acts"><button class="btn primary" data-ok>OK</button></div></div>`;
+      r.status.remove();
+      $("[data-ok]", r.body).addEventListener("click", () => close(id));
+    }, false);
+    rec.el.style.height = "auto";
+    rec.el.classList.remove("max"); rec.el.classList.add("dlg-win");
+    setTimeout(() => { const b = $("[data-ok]", rec.body); b && b.focus(); }, 30);
+    return rec;
+  }
+
+  // ---- app: whoami ----
+  function renderWho(rec) {
+    const bars = ME.skills.map(([n, v]) =>
+      `<li><span>${esc(n)}</span><span class="bar">[${"#".repeat(v)}${"·".repeat(10 - v)}]</span></li>`).join("");
+    rec.body.innerHTML = `<div class="who">
+      <pre aria-hidden="true">  .-"""-.
+ /  o o  \\
+|    ^    |
+ \\  '-'  /
+  '-...-'</pre>
+      <div class="who-main">
+        <div class="p">${esc(ME.login)}@${esc(OS.host)}:~$ <b>whoami</b></div>
+        <h2>${esc(ME.name)}</h2>
+        <p class="role">${esc(ME.role)}${ME.city ? " · " + esc(ME.city) : ""}</p>
+        ${ME.about.map(p => `<p>${esc(p)}</p>`).join("")}
+        <div class="p">${esc(ME.login)}@${esc(OS.host)}:~$ <b>cat ~/.skills</b></div>
+        <ul>${bars}</ul>
+        <div class="p">${esc(ME.login)}@${esc(OS.host)}:~$ <b class="cur"></b></div>
+      </div></div>`;
+    status(rec, "/home/" + ME.login, "tty1");
+  }
+
+  // ---- app: files ----
+  function renderFiles(rec) {
+    let cur = null;          // null = portfolio root, otherwise a project index
+    const hist = [];
+    const root = `/home/${ME.login}/portfolio`;
+    rec.body.innerHTML = `<div class="fm">
+      <div class="fm-tools">
+        <button class="btn" data-nav="back" aria-label="Назад">◄ Назад</button>
+        <button class="btn" data-nav="up" aria-label="Вверх">▲ Вверх</button>
+        <div class="fm-path sunken"></div>
+      </div>
+      <div class="fm-main">
+        <div class="fm-tree sunken"></div>
+        <div class="fm-view sunken"></div>
+      </div></div>`;
+    const view = $(".fm-view", rec.body), tree = $(".fm-tree", rec.body), path = $(".fm-path", rec.body);
+    const backBtn = $("[data-nav=back]", rec.body), upBtn = $("[data-nav=up]", rec.body);
+    backBtn.addEventListener("click", () => { if (hist.length) go(hist.pop(), false); });
+    upBtn.addEventListener("click", () => { if (cur !== null) go(null); });
+    tree.addEventListener("click", e => {
+      const b = e.target.closest("[data-go]"); if (!b) return;
+      go(b.dataset.go === "" ? null : +b.dataset.go);
+    });
+
+    function go(to, push = true) {
+      if (push && to !== cur) hist.push(cur);
+      cur = to; draw();
+    }
+    function draw() {
+      const p = cur === null ? null : PROJECTS[cur];
+      path.textContent = p ? `${root}/${p.dir}` : root;
+      backBtn.disabled = !hist.length; upBtn.disabled = cur === null;
+      $(".win-title", rec.el).textContent = `Файлы — ${p ? p.dir : "portfolio"}`;
+      tree.innerHTML =
+        `<button class="d0">${ICON.folder}/</button><button class="d1">${ICON.folder}home</button>` +
+        `<button class="d2">${ICON.folder}${esc(ME.login)}</button>` +
+        `<button class="d2 ${cur === null ? "cur" : ""}" data-go="" style="padding-left:34px">${ICON.folder}portfolio</button>` +
+        PROJECTS.map((x, i) => `<button class="${cur === i ? "cur" : ""}" data-go="${i}" style="padding-left:46px">${ICON.folder}${esc(x.dir)}</button>`).join("");
+      if (!p) {
+        view.innerHTML = `<div class="fm-grid">${PROJECTS.map((x, i) =>
+          `<button class="os-icon" data-app="${i}">${ICON.folder}<span>${esc(x.dir)}</span></button>`).join("")}</div>`;
+        bindIcons($(".fm-grid", view), i => go(+i));
+        status(rec, `${PROJECTS.length} объекта`, touchUI ? "Нажми на папку" : "Двойной клик — открыть");
+      } else {
+        const host = p.url.replace(/^https?:\/\//, "");
+        view.innerHTML = `<div class="proj">
+          <div class="shot${p.shot ? " " + p.shot.theme : ""}" style="--h:${p.hue || 0}">
+            <div class="shot-bar"><i></i><i></i><i></i><span>${esc(host)}</span></div>
+            <div class="shot-body">${p.shot
+              ? `<small>${esc(p.shot.tagline)}</small><b>${esc(p.title)}</b><em>${esc(p.shot.cta)}</em>`
+              : `<b>${esc(p.title)}</b><s></s><s></s>`}</div>
+          </div>
+          <h3>${esc(p.title)}</h3>
+          <dl><dt>Год</dt><dd>${esc(p.year)}</dd><dt>Роль</dt><dd>${esc(p.role)}</dd>
+            ${p.stack.length ? `<dt>Стек</dt><dd>${p.stack.map(s => `<span class="tag">${esc(s)}</span>`).join("")}</dd>` : ""}</dl>
+          <p>${esc(p.desc)}</p>
+          ${p.points ? `<ul class="proj-points">${p.points.map(pt => `<li>${Array.isArray(pt) ? `<b>${esc(pt[0])}</b> ${esc(pt[1])}` : esc(pt)}</li>`).join("")}</ul>` : ""}
+          <div class="acts"><a class="btn primary" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">Открыть сайт ↗</a></div>
+        </div>`;
+        status(rec, `README.txt · screenshot.png · site.url`, p.year);
+      }
+      view.scrollTop = 0;
+    }
+    draw();
+  }
+
+  // ---- app: mail ----
+  function renderMail(rec) {
+    const tg = CONTACTS.telegram, me = OS.name;
+    rec.body.innerHTML = `<div class="mail">
+      <div class="mail-tools"><a class="btn" href="https://t.me/${esc(tg)}" target="_blank" rel="noopener noreferrer">✎ Написать в Telegram</a></div>
+      <div class="mail-folders sunken">
+        <div class="cur"><span>Входящие</span><span>1</span></div>
+        <div><span>Отправленные</span></div><div><span>Черновики</span></div><div><span>Спам</span><span>999</span></div>
+      </div>
+      <div class="mail-right">
+        <div class="mail-list sunken"><table>
+          <thead><tr><th>От</th><th>Тема</th><th>Дата</th></tr></thead>
+          <tbody><tr class="cur unread"><td>${esc(me)}</td><td>Как со мной связаться</td><td>18.10.2003</td></tr></tbody>
+        </table></div>
+        <div class="mail-msg sunken">
+          <dl class="mail-head"><dt>От:</dt><dd>${esc(me)}</dd><dt>Тема:</dt><dd>Как со мной связаться</dd></dl>
+          <div class="mail-text">
+            <p>Привет! Если есть проект, вопрос или просто хочешь поболтать, пиши в Telegram. Отвечаю там быстрее всего.</p>
+            <dl class="contacts">
+              <div class="contact"><dt>Telegram</dt><dd><a href="https://t.me/${esc(tg)}" target="_blank" rel="noopener noreferrer">@${esc(tg)}</a></dd><button class="btn" data-copy="@${esc(tg)}">Копировать</button></div>
+              <div class="contact"><dt>Почта</dt><dd class="nomail">Ещё не завёл. Почтовый голубь улетел в 2003 году и до сих пор не вернулся.</dd><span></span></div>
+            </dl>
+            <p>— ${esc(me)}</p>
+          </div>
+        </div>
+      </div></div>`;
+    rec.body.addEventListener("click", e => {
+      const c = e.target.closest("[data-copy]");
+      if (c) copy(c.dataset.copy, c, rec);
+    });
+    status(rec, "1 письмо, 1 непрочитанное", "Онлайн");
+  }
+  function copy(text, btn, rec) {
+    const done = () => { btn.textContent = "Скопировано"; setTimeout(() => (btn.textContent = "Копировать"), 1500); status(rec, "Скопировано: " + text, "Онлайн"); };
+    const fallback = () => {
+      const dd = btn.previousElementSibling, r = document.createRange();
+      r.selectNodeContents(dd); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      status(rec, "Текст выделен, нажми Ctrl+C", "Онлайн");
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
+  }
+  function renderTrash(rec) {
+    rec.body.innerHTML = `<div class="dlg paper" style="height:100%">${ICON.trash}<div><p>Корзина пуста.</p><p>Здесь лежали неудачные идеи, но я их уже удалил.</p></div></div>`;
+    status(rec, "0 объектов", "");
+  }
+
+  // ---- app: browser (the web of 2003, all fictional sites) ----
+  const HOME = "http://www.inv1zel.net/";
+  const BOOKMARKS = [["Моя страница", HOME], ["Гостевая", "http://www.inv1zel.net/guestbook"], ["Барсик", "http://home.inv1zel.net/~barsik/"], ["Ссылки", "http://www.inv1zel.net/links"]];
+  let prizeShown = false;
+
+  function normalize(u) {
+    u = String(u || "").trim();
+    if (!u) return HOME;
+    if (/^about:/i.test(u)) return u.toLowerCase();
+    if (!/^[a-z]+:\/\//i.test(u)) u = "http://" + u;
+    try { const x = new URL(u); return x.protocol + "//" + x.host + x.pathname + x.search; } catch (err) { return u; }
+  }
+  function resolve(url) {
+    if (url === "about:blank") return { title: "Пустая страница", html: "" };
+    let x; try { x = new URL(url); } catch (err) { return pageError(url); }
+    const host = x.host, path = x.pathname.replace(/\/+$/, "") || "/";
+    if (host === "www.inv1zel.net" || host === "inv1zel.net") {
+      if (path === "/") return pageHome();
+      if (path === "/guestbook") return pageGuestbook();
+      if (path === "/search") return pageSearch(x.searchParams.get("q") || "");
+      if (path === "/links") return pageLinks();
+    }
+    if (host === "home.inv1zel.net" && path.startsWith("/~barsik")) return pageCat();
+    return pageError(host);
+  }
+
+  function pageHome() {
+    return {
+      title: "inv1zel.net — Главная",
+      html: `<div class="w-marq"><span>*** Добро пожаловать на inv1zel.net! *** Сайт обновлён 18.10.2003 *** Добавь нас в Избранное: Ctrl+D *** Не забудь расписаться в гостевой книге! ***</span></div>
+      <div class="w-cols">
+        <nav class="w-nav"><b>МЕНЮ</b>
+          <a data-href="${HOME}">» Главная</a>
+          <a data-app="files">» Портфолио</a>
+          <a data-app="who">» Обо мне</a>
+          <a data-href="http://www.inv1zel.net/guestbook">» Гостевая книга</a>
+          <a data-href="http://home.inv1zel.net/~barsik/">» Страница Барсика</a>
+          <a data-app="games">» Игры</a>
+          <a data-href="http://www.inv1zel.net/links">» Ссылки</a>
+        </nav>
+        <div class="w-main">
+          <h1 class="w-logo">inv1zel.net</h1>
+          <p><i>Мой уголок в Интернете.</i> <span class="w-blink">NEW!</span></p>
+          <form class="w-search" data-search><input name="q" aria-label="Поиск" placeholder="Искать в Интернете…"><button class="btn">Найти!</button></form>
+          <h2>Новости</h2>
+          <dl class="w-news">
+            <dt>18.10.2003</dt><dd>Сайт переехал на новый хостинг! Теперь у меня целых 5 МБ места.</dd>
+            <dt>02.10.2003</dt><dd>Добавил раздел <a data-app="files">«Портфолио»</a>. Там три проекта, заходите.</dd>
+            <dt>14.09.2003</dt><dd>Купил модем на 56 кбит/с. Страницы теперь грузятся всего за минуту.</dd>
+            <dt>01.09.2003</dt><dd>Учёные обещают, что к 2010 году у каждого будет гигабайт памяти. Не верю.</dd>
+          </dl>
+          <div class="w-uc"><span>РАЗДЕЛ «ВИДЕО» В РАЗРАБОТКЕ</span></div>
+          <p>Вы посетитель № <span class="w-counter" data-counter></span></p>
+          <div class="w-badges"><span class="w-badge">Лучше всего смотреть в 800×600</span><span class="w-badge">Сделано в Блокноте</span>
+            <span class="w-badge">Оптимизировано под Сёрфер 4.0</span><span class="w-badge">Без рекламы*</span></div>
+          <p><small>* почти</small></p>
+        </div>
+      </div>`,
+      mount(root, nav) {
+        $("[data-search]", root).addEventListener("submit", e => {
+          e.preventDefault();
+          nav("http://www.inv1zel.net/search?q=" + encodeURIComponent(e.target.q.value));
+        });
+        const cnt = $("[data-counter]", root);
+        let n = 13370 + Math.floor(Math.random() * 400);
+        const show = () => { cnt.innerHTML = String(n).padStart(7, "0").split("").map(d => `<b>${d}</b>`).join(""); };
+        show();
+        const iv = setInterval(() => { if (Math.random() < 0.3) { n++; show(); } }, 2500);
+        return () => clearInterval(iv);
+      },
+    };
+  }
+
+  function pageSearch(q) {
+    const t = esc(q.trim());
+    const slug = encodeURIComponent(q.trim().toLowerCase().replace(/\s+/g, "-")).slice(0, 24) || "vse";
+    return {
+      title: `Поиск: ${q || "пусто"}`,
+      html: `<div class="w-results">
+        <h2 class="w-logo" style="font-size:28px">inv1zel-поиск</h2>
+        <form class="w-search" data-search><input name="q" aria-label="Поиск" value="${t}"><button class="btn">Найти!</button></form>
+        ${t ? `<p>Найдено примерно 4 результата за 3,7 секунды (модем же).</p>
+        <div class="hit"><a data-href="http://www.free-${slug}.inv/download.exe">${t} — скачать бесплатно, без регистрации и SMS</a><small>www.free-${slug}.inv/download.exe · 700 КБ</small></div>
+        <div class="hit"><a data-href="http://referaty.inv/${slug}">Реферат на тему «${t}». Оценка «5»!</a><small>referaty.inv · Скачано 31 337 раз</small></div>
+        <div class="hit"><a data-href="http://forum.inv/topic/1337">ПОМОГИТЕ!!! не работает ${t}, что делать???</a><small>forum.inv · 214 ответов · последний: «тоже интересует»</small></div>
+        <div class="hit"><a data-app="files">Портфолио inv1zel — лучшие сайты 2003 года</a><small>www.inv1zel.net/portfolio · Рекомендуем!</small></div>`
+        : `<p>Введите что-нибудь в строку поиска. Например, «как сделать сайт».</p>`}
+      </div>`,
+      mount(root, nav) {
+        $("[data-search]", root).addEventListener("submit", e => {
+          e.preventDefault();
+          nav("http://www.inv1zel.net/search?q=" + encodeURIComponent(e.target.q.value));
+        });
+      },
+    };
+  }
+
+  function pageLinks() {
+    return {
+      title: "Ссылки — в разработке",
+      html: `<div class="w-err" style="max-width:none;text-align:center">
+        <div class="w-uc"><span>UNDER CONSTRUCTION</span></div>
+        <h2>Ссылки на сайты друзей</h2>
+        <p>Здесь скоро появятся сайты друзей. Пока что друзей нет, но я над этим работаю.</p>
+        <p><a data-href="http://ring.inv/prev">« пред.</a> | <b>Кольцо сайтов про компьютеры</b> | <a data-href="http://ring.inv/next">след. »</a></p>
+        <div class="w-uc"><span>UNDER CONSTRUCTION</span></div>
+      </div>`,
+    };
+  }
+
+  function pageError(host) {
+    return {
+      title: "Не удаётся найти сервер",
+      html: `<div class="w-err">
+        <h2>Не удаётся найти сервер</h2>
+        <p>Сёрфер не может открыть страницу <b>${esc(host)}</b>.</p>
+        <p>Попробуйте следующее:</p>
+        <ul>
+          <li>Проверьте, правильно ли набран адрес.</li>
+          <li>Убедитесь, что модем подключён, а мама не разговаривает по телефону.</li>
+          <li>Подождите до 23:00: ночью Интернет дешевле.</li>
+          <li>Вернитесь на <a data-href="${HOME}">домашнюю страницу</a>.</li>
+        </ul>
+        <hr><small>Ошибка 404. Возможно, этот сайт ещё не придумали.</small>
+      </div>`,
+    };
+  }
+
+  function pageCat() {
+    const frames = [
+      String.raw`  /\_/\
+ ( o.o )
+ /> ^ <\
+  /   \ `,
+      String.raw`  /\_/\
+ ( ^.^ )
+ \> ^ </
+  \   / `,
+      String.raw`   /\_/\
+  ( -.- )
+  /> ^ <\
+   |   | `,
+    ];
+    return {
+      title: "Страница Барсика!!!",
+      html: `<div class="w-cat">
+        <h1>ДОБРО ПОЖАЛОВАТЬ НА СТРАНИЦУ БАРСИКА!!!</h1>
+        <pre data-cat></pre>
+        <p>Мне 4 года. Я люблю спать на мониторе, потому что он тёплый.</p>
+        <p>Мои увлечения: ловить курсор, спать и нажимать на клавиатуру хвостом.</p>
+        <p><button class="btn" data-music>▶ Включить музыку (korobeiniki.mid)</button></p>
+        <p class="w-blink" style="color:#0f0">Подпишись на мою рассылку!!!</p>
+        <p>Мяу: <span class="w-counter"><b>0</b><b>0</b><b>0</b><b>0</b><b>4</b><b>2</b></span></p>
+        <p><a data-href="${HOME}">« Назад к хозяину</a></p>
+      </div>`,
+      mount(root) {
+        const pre = $("[data-cat]", root);
+        let f = 0; pre.textContent = frames[0];
+        const iv = reduceMotion ? 0 : setInterval(() => { f = (f + 1) % frames.length; pre.textContent = frames[f]; }, 380);
+        let ac = null;
+        const btn = $("[data-music]", root);
+        const stop = () => { if (ac) { ac.close(); ac = null; } btn.textContent = "▶ Включить музыку (korobeiniki.mid)"; };
+        btn.addEventListener("click", () => {
+          if (ac) return stop();
+          try {
+            ac = new (window.AudioContext || window.webkitAudioContext)();
+            const E5 = 659.25, B4 = 493.88, C5 = 523.25, D5 = 587.33, A4 = 440;
+            const tune = [[E5,1],[B4,.5],[C5,.5],[D5,1],[C5,.5],[B4,.5],[A4,1],[A4,.5],[C5,.5],[E5,1],[D5,.5],[C5,.5],[B4,1.5],[C5,.5],[D5,1],[E5,1],[C5,1],[A4,1],[A4,2]];
+            let t = ac.currentTime + 0.05;
+            const beat = 0.24;
+            for (let rep = 0; rep < 2; rep++) for (const [f0, d] of tune) {
+              const o = ac.createOscillator(), g = ac.createGain();
+              o.type = "square"; o.frequency.value = f0;
+              g.gain.setValueAtTime(0.045, t); g.gain.setValueAtTime(0, t + d * beat * 0.9);
+              o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d * beat);
+              t += d * beat;
+            }
+            btn.textContent = "■ Выключить музыку";
+          } catch (err) { btn.textContent = "Звуковая карта не найдена"; }
+        });
+        return () => { clearInterval(iv); stop(); };
+      },
+    };
+  }
+
+  const GB_SEED = [
+    { name: "Админ", text: "Сайт открыт! Пишите свои пожелания.", date: "01.09.2003" },
+    { name: "Вася_2003", text: "Классный сайт!!! Заходи ко мне: www.vasya-krutoi.inv", date: "03.09.2003" },
+    { name: "Аноним", text: "а где скачать сапёра?", date: "12.10.2003" },
+    { name: "Админ", text: "Сапёр лежит в папке «Игры» на рабочем столе :)", date: "12.10.2003" },
+  ];
+  function pageGuestbook() {
+    return {
+      title: "Гостевая книга",
+      html: `<div class="w-gb">
+        <h1>Гостевая книга</h1>
+        <p>Оставь запись, мне будет приятно!</p>
+        <form data-gb>
+          <input name="name" maxlength="30" placeholder="Имя" aria-label="Имя" required>
+          <textarea name="text" maxlength="300" rows="3" placeholder="Сообщение" aria-label="Сообщение" required></textarea>
+          <div><button class="btn">Добавить запись</button></div>
+          <small>Записи видишь только ты: они сохраняются в твоём браузере.</small>
+        </form>
+        <div data-entries></div>
+        <p><a data-href="${HOME}">« На главную</a></p>
+      </div>`,
+      mount(root) {
+        const KEY = "inv1zel-guestbook";
+        let mine = [];
+        try { mine = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (err) { mine = []; }
+        if (!Array.isArray(mine)) mine = [];
+        mine = mine.filter(e => e && typeof e === "object").slice(0, 50)
+          .map(e => ({ name: String(e.name || "Аноним").slice(0, 30), text: String(e.text || "").slice(0, 300), date: String(e.date || "").slice(0, 10) }));
+        const list = $("[data-entries]", root);
+        const draw = () => {
+          list.innerHTML = [...mine, ...GB_SEED.slice().reverse()].map(e =>
+            `<article><b>${esc(e.name)}</b> <small>${esc(e.date)}</small><br>${esc(e.text)}</article>`).join("");
+        };
+        draw();
+        $("[data-gb]", root).addEventListener("submit", e => {
+          e.preventDefault();
+          const f = e.target, d = new Date();
+          mine.unshift({ name: f.name.value.trim() || "Аноним", text: f.text.value.trim(),
+            date: `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.2003` });
+          try { localStorage.setItem(KEY, JSON.stringify(mine.slice(0, 50))); } catch (err) { /* stays in memory */ }
+          f.reset(); draw();
+        });
+      },
+    };
+  }
+
+  function renderBrowser(rec) {
+    rec.body.innerHTML = `<div class="br">
+      <div class="br-tools">
+        <button class="btn" data-b="back">◄ Назад</button>
+        <button class="btn" data-b="fwd">Вперёд ►</button>
+        <button class="btn" data-b="reload">↻ Обновить</button>
+        <button class="btn" data-b="home">⌂ Домой</button>
+        <div class="br-throb bv-in" aria-hidden="true"><i></i></div>
+      </div>
+      <form class="br-addr"><label for="brAddr">Адрес:</label><input id="brAddr" spellcheck="false" autocomplete="off"><button class="btn">Переход</button></form>
+      <div class="br-marks"><span>Закладки:</span>${BOOKMARKS.map(([n, u]) => `<button data-mark="${esc(u)}">${esc(n)}</button>`).join("")}</div>
+      <div class="br-view sunken"></div>
+    </div>`;
+    const view = $(".br-view", rec.body), addr = $("#brAddr", rec.body), throb = $(".br-throb", rec.body);
+    const B = k => $(`[data-b=${k}]`, rec.body);
+    const back = [], fwd = [];
+    let cur = null, cleanup = null, loadT = 0, doneT = 0;
+
+    function go(url, mode = "push") {
+      url = normalize(url);
+      if (mode === "push" && cur && url !== cur) { back.push(cur); fwd.length = 0; }
+      cur = url;
+      try { addr.value = decodeURI(url); } catch (err) { addr.value = url; }
+      B("back").disabled = !back.length; B("fwd").disabled = !fwd.length;
+      if (cleanup) { cleanup(); cleanup = null; }
+      clearTimeout(loadT); clearTimeout(doneT);
+      throb.classList.add("busy"); view.classList.remove("loading");
+      view.innerHTML = "";
+      const host = url.replace(/^[a-z]+:\/\//i, "").split("/")[0];
+      status(rec, `Соединение с ${host}…`, "28,8 кбит/с");
+      loadT = setTimeout(() => {
+        const page = resolve(url);
+        view.innerHTML = `<div class="web">${page.html}</div>`;
+        view.scrollTop = 0;
+        void view.offsetWidth; view.classList.add("loading");
+        $(".win-title", rec.el).textContent = `${page.title} — Сёрфер 4.0`;
+        status(rec, `Загрузка: ${host}…`, "28,8 кбит/с");
+        cleanup = page.mount ? page.mount(view.firstElementChild, u => go(u)) || null : null;
+        doneT = setTimeout(() => { throb.classList.remove("busy"); status(rec, "Готово", "Интернет"); }, reduceMotion ? 0 : 1000);
+      }, reduceMotion ? 0 : 450 + Math.random() * 450);
+    }
+
+    B("back").addEventListener("click", () => { if (back.length) { fwd.push(cur); go(back.pop(), "hist"); } });
+    B("fwd").addEventListener("click", () => { if (fwd.length) { back.push(cur); go(fwd.pop(), "hist"); } });
+    B("reload").addEventListener("click", () => go(cur, "hist"));
+    B("home").addEventListener("click", () => go(HOME));
+    $(".br-addr", rec.body).addEventListener("submit", e => { e.preventDefault(); go(addr.value); });
+    $(".br-marks", rec.body).addEventListener("click", e => { const b = e.target.closest("[data-mark]"); if (b) go(b.dataset.mark); });
+    view.addEventListener("click", e => {
+      const a = e.target.closest("[data-href], [data-app]"); if (!a) return;
+      e.preventDefault();
+      if (a.dataset.app) openApp(a.dataset.app); else go(a.dataset.href);
+    });
+
+    const prizeT = prizeShown ? 0 : setTimeout(() => { if (wins.has("browser")) { prizeShown = true; prizePopup(); } }, 8000);
+    rec.onClose = () => { clearTimeout(loadT); clearTimeout(doneT); clearTimeout(prizeT); if (cleanup) cleanup(); };
+    go(HOME);
+  }
+
+  function prizePopup() {
+    const rec = createWindow("prize", "ВНИМАНИЕ!!! Вы выиграли!", ICON.info, 340, 220, r => {
+      r.body.innerHTML = `<div class="prize"><b class="w-blink">ПОЗДРАВЛЯЕМ!!!</b>
+        <p data-prize-text>Вы 1 000 000-й посетитель!<br>Нажмите кнопку, чтобы забрать приз.</p>
+        <button class="btn primary" data-prize>Забрать приз</button></div>`;
+      r.status.remove();
+      const b = $("[data-prize]", r.body);
+      let dodges = 0, claimed = false;
+      if (!touchUI) b.addEventListener("pointerenter", () => {
+        if (claimed || dodges >= 3) return;
+        dodges++;
+        b.style.transform = `translate(${(Math.random() < .5 ? -1 : 1) * (50 + Math.random() * 60)}px, ${(Math.random() * 2 - 1) * 24}px)`;
+      });
+      b.addEventListener("click", () => {
+        if (claimed) return close("prize");
+        claimed = true; b.style.transform = "";
+        $("[data-prize-text]", r.body).innerHTML = "Ваш приз: <b style='display:inline;font-size:inherit'>этот сайт</b>.<br>Он уже ваш, пользуйтесь на здоровье.";
+        b.textContent = "Спасибо!";
+      });
+    }, false);
+    rec.el.style.height = "auto";
+    rec.el.classList.remove("max"); rec.el.classList.add("dlg-win");
+  }
+
+  // ---- app: games ----
+  function renderGames(rec) {
+    rec.body.innerHTML = `<div class="fm-grid paper" style="height:100%;box-sizing:border-box">${["mines", "snake"].map(id =>
+      `<button class="os-icon" data-app="${id}">${APPS[id].icon}<span>${APPS[id].label}</span></button>`).join("")}</div>`;
+    bindIcons($(".fm-grid", rec.body), id => openApp(id));
+    status(rec, "2 объекта", "");
+  }
+
+  // Minesweeper first shipped in 1990; the intro compares that to the player's birth year
+  const MINES_YEAR = 1990;
+  const years = n => { const a = Math.abs(n) % 100, b = a % 10; return n + " " + (a > 10 && a < 20 ? "лет" : b === 1 ? "год" : b > 1 && b < 5 ? "года" : "лет"); };
+  function ageVerdict(born) {
+    const now = new Date().getFullYear();
+    if (born === "secret") return "Возраст засекречен. Сапёр уважает таинственных.";
+    if (!(born >= 1900 && born <= now)) return null;
+    const d = born - MINES_YEAR;
+    if (d > 0) return `Эта игра старше тебя на ${years(d)}. Уважай старших.`;
+    if (d === 0) return "Вы с Сапёром ровесники. Можно на «ты».";
+    if (born >= 1960) return `Ты старше Сапёра на ${years(-d)}. Покажи ему, кто тут главный.`;
+    return `Ты старше Сапёра на ${years(-d)} и помнишь компьютеры размером с комнату. Для тебя это детская забава.`;
+  }
+
+  function renderMines(rec) {
+    let saved = null;   // a year, "secret", or null when we haven't asked yet
+    try { saved = JSON.parse(localStorage.getItem("inv1zel-born")); } catch (err) { saved = null; }
+    if (saved !== null && ageVerdict(saved)) return minesGame(rec, ageVerdict(saved));
+    const age = new Date().getFullYear() - MINES_YEAR;
+    rec.body.innerHTML = `<form class="mines-intro" novalidate>
+      <div class="led" style="text-align:center">${age}</div>
+      <p>Сапёру уже ${years(age)}.<br>А в каком году родился ты?</p>
+      <input id="minesBorn" type="number" inputmode="numeric" min="1900" max="${new Date().getFullYear()}" placeholder="например, 2005" aria-label="Год рождения">
+      <p class="note" data-note></p>
+      <div class="acts"><button type="button" class="btn" data-skip>Не скажу</button><button class="btn primary">Узнать</button></div>
+    </form>`;
+    const form = $(".mines-intro", rec.body), note = $("[data-note]", rec.body);
+    const finish = born => {
+      try { localStorage.setItem("inv1zel-born", JSON.stringify(born)); } catch (err) { /* ask again next time */ }
+      const v = ageVerdict(born);
+      form.innerHTML = `<p class="verdict">${esc(v)}</p><div class="acts"><button class="btn primary" data-play>Играть</button></div>`;
+      $("[data-play]", form).addEventListener("click", () => minesGame(rec, v));
+      $("[data-play]", form).focus();
+    };
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const born = parseInt($("#minesBorn").value, 10);
+      if (!ageVerdict(born)) { note.textContent = "Хорошая попытка. Введи настоящий год."; return; }
+      finish(born);
+    });
+    $("[data-skip]", form).addEventListener("click", () => finish("secret"));
+    status(rec, "Сапёр, 1990 год выпуска", "");
+    setTimeout(() => { const i = $("#minesBorn"); if (i && !touchUI) i.focus(); }, 30);
+  }
+
+  function minesGame(rec, verdict) {
+    const N = 9, M = 10;
+    let cells, started, over, flags, opened, timer, secs, flagMode = false;
+    rec.body.innerHTML = `<div class="mines">
+      <div class="mines-top sunken"><span class="led" data-left></span><button class="btn face" data-face aria-label="Новая игра">:)</button><span class="led" data-time></span></div>
+      <div class="mines-grid sunken"></div>
+      ${touchUI ? `<button class="btn" data-mode>Режим: открывать</button>` : ""}
+    </div>`;
+    const grid = $(".mines-grid", rec.body), left = $("[data-left]", rec.body), time = $("[data-time]", rec.body);
+    const face = $("[data-face]", rec.body), modeBtn = $("[data-mode]", rec.body);
+    const pad = n => String(Math.max(0, Math.min(999, n))).padStart(3, "0");
+    const nb = i => {
+      const x = i % N, y = (i / N) | 0, r = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if ((dx || dy) && nx >= 0 && ny >= 0 && nx < N && ny < N) r.push(ny * N + nx);
+      }
+      return r;
+    };
+    function reset() {
+      clearInterval(timer);
+      started = over = false; flags = opened = secs = 0;
+      cells = Array.from({ length: N * N }, () => ({ mine: false, n: 0, open: false, flag: false }));
+      grid.innerHTML = cells.map((_, i) => `<button class="mc" data-i="${i}" aria-label="Клетка ${i % N + 1}, ${((i / N) | 0) + 1}"></button>`).join("");
+      face.textContent = ":)"; left.textContent = pad(M); time.textContent = pad(0);
+      status(rec, verdict || (touchUI ? "Переключи режим, чтобы ставить флажки" : "ЛКМ — открыть, ПКМ — флажок"), "");
+    }
+    function plant(safe) {
+      const keep = [safe, ...nb(safe)];
+      let k = 0;
+      while (k < M) { const i = (Math.random() * N * N) | 0; if (cells[i].mine || keep.includes(i)) continue; cells[i].mine = true; k++; }
+      cells.forEach((c, i) => { c.n = nb(i).filter(j => cells[j].mine).length; });
+    }
+    function openCell(i) {
+      const c = cells[i]; if (c.open || c.flag || over) return;
+      c.open = true; opened++;
+      const el = grid.children[i]; el.classList.add("open");
+      if (c.mine) return lose(i);
+      if (c.n) { el.textContent = c.n; el.dataset.n = c.n; } else nb(i).forEach(openCell);
+    }
+    function lose(i) {
+      over = true; clearInterval(timer); face.textContent = "X(";
+      cells.forEach((c, j) => {
+        const el = grid.children[j];
+        if (c.mine && !c.flag) el.classList.add("open", "mine");
+        if (!c.mine && c.flag) { el.classList.remove("flag"); el.textContent = "×"; }
+      });
+      grid.children[i].classList.add("boom");
+      status(rec, "Бум! Нажми на смайлик, чтобы сыграть ещё", "");
+    }
+    function checkWin() {
+      if (over || opened !== N * N - M) return;
+      over = true; clearInterval(timer); face.textContent = "B)";
+      cells.forEach((c, j) => { if (c.mine) grid.children[j].classList.add("flag"); });
+      left.textContent = pad(0);
+      status(rec, `Победа за ${secs} с!`, "");
+    }
+    function act(i, flag) {
+      if (over) return;
+      const c = cells[i];
+      if (flag) {
+        if (c.open) return;
+        c.flag = !c.flag; flags += c.flag ? 1 : -1;
+        grid.children[i].classList.toggle("flag", c.flag); left.textContent = pad(M - flags);
+        return;
+      }
+      if (!started) { started = true; plant(i); timer = setInterval(() => { secs++; time.textContent = pad(secs); }, 1000); }
+      if (c.open) { const ns = nb(i); if (c.n && ns.filter(j => cells[j].flag).length === c.n) ns.forEach(openCell); }
+      else openCell(i);
+      checkWin();
+    }
+    grid.addEventListener("click", e => { const b = e.target.closest(".mc"); if (b) act(+b.dataset.i, flagMode); });
+    grid.addEventListener("contextmenu", e => { e.preventDefault(); const b = e.target.closest(".mc"); if (b) act(+b.dataset.i, !flagMode); });
+    grid.addEventListener("pointerdown", e => { if (!over && e.button === 0 && e.target.closest(".mc")) face.textContent = ":O"; });
+    const unpress = () => { if (!over) face.textContent = ":)"; };
+    addEventListener("pointerup", unpress);
+    face.addEventListener("click", reset);
+    if (modeBtn) modeBtn.addEventListener("click", () => {
+      flagMode = !flagMode; modeBtn.classList.toggle("on", flagMode);
+      modeBtn.textContent = flagMode ? "Режим: флажки" : "Режим: открывать";
+    });
+    rec.onClose = () => { clearInterval(timer); removeEventListener("pointerup", unpress); };
+    reset();
+  }
+
+  function renderSnake(rec) {
+    const G = 20, S = 15, LCD = "#c7d9a7", DIM = "#b9cc98", INK = "#2e3b22";
+    rec.body.innerHTML = `<div class="snake">
+      <div class="snake-hud"><span>Счёт: <b data-score>0</b></span><span>Рекорд: <b data-best>0</b></span></div>
+      <canvas width="${G * S}" height="${G * S}" tabindex="0" aria-label="Игровое поле"></canvas>
+      <div class="pad">
+        <button class="btn" data-d="0,-1" style="grid-area:1/2" aria-label="Вверх">▲</button>
+        <button class="btn" data-d="-1,0" style="grid-area:2/1" aria-label="Влево">◄</button>
+        <button class="btn" data-d="0,1" style="grid-area:2/2" aria-label="Вниз">▼</button>
+        <button class="btn" data-d="1,0" style="grid-area:2/3" aria-label="Вправо">►</button>
+      </div>
+    </div>`;
+    const cv = $("canvas", rec.body), g = cv.getContext("2d");
+    const scoreEl = $("[data-score]", rec.body), bestEl = $("[data-best]", rec.body);
+    let best = 0;
+    try { best = +localStorage.getItem("inv1zel-snake") || 0; } catch (err) { best = 0; }
+    bestEl.textContent = best;
+    let snake, dir, nextDir, food, score, state = "idle", timer = 0;
+
+    function reset() {
+      snake = [{ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }];
+      dir = nextDir = { x: 1, y: 0 }; score = 0; scoreEl.textContent = 0; placeFood();
+    }
+    function placeFood() {
+      do food = { x: (Math.random() * G) | 0, y: (Math.random() * G) | 0 };
+      while (snake.some(p => p.x === food.x && p.y === food.y));
+    }
+    function draw() {
+      g.fillStyle = LCD; g.fillRect(0, 0, G * S, G * S);
+      g.fillStyle = DIM;                                   // ghost pixels of the LCD
+      for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) g.fillRect(x * S + 1, y * S + 1, S - 2, S - 2);
+      g.fillStyle = INK;
+      snake.forEach(p => g.fillRect(p.x * S + 1, p.y * S + 1, S - 2, S - 2));
+      g.fillRect(food.x * S + 5, food.y * S + 2, S - 10, S - 4);
+      g.fillRect(food.x * S + 2, food.y * S + 5, S - 4, S - 10);
+      if (state !== "run") {
+        g.fillStyle = "rgba(199,217,167,.9)"; g.fillRect(0, G * S / 2 - 42, G * S, 84);
+        g.fillStyle = INK; g.textAlign = "center";
+        g.font = "bold 24px 'Pixelify Sans', monospace";
+        g.fillText(state === "idle" ? "ЗМЕЙКА" : state === "over" ? "КОНЕЦ ИГРЫ" : "ПАУЗА", G * S / 2, G * S / 2 - 6);
+        g.font = "13px 'IBM Plex Mono', monospace";
+        g.fillText(touchUI ? "Нажми на поле, чтобы начать" : "Пробел — старт, стрелки — рулить", G * S / 2, G * S / 2 + 22);
+      }
+    }
+    const live = () => { const w = wins.get("snake"); return w && !w.el.hidden && w.el.classList.contains("active") && !os.hidden; };
+    function pause() { if (state === "run") { state = "pause"; clearInterval(timer); draw(); } }
+    function step() {
+      if (!live()) return pause();
+      dir = nextDir;
+      const h = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      if (h.x < 0 || h.y < 0 || h.x >= G || h.y >= G || snake.some(p => p.x === h.x && p.y === h.y)) {
+        state = "over"; clearInterval(timer);
+        if (score > best) { best = score; bestEl.textContent = best; try { localStorage.setItem("inv1zel-snake", best); } catch (err) { /* no record then */ } }
+        status(rec, `Конец игры. Счёт: ${score}`, ""); draw(); return;
+      }
+      snake.unshift(h);
+      if (h.x === food.x && h.y === food.y) { score++; scoreEl.textContent = score; placeFood(); run(); }
+      else snake.pop();
+      draw();
+    }
+    function run() { clearInterval(timer); timer = setInterval(step, Math.max(60, 150 - score * 4)); }
+    function start() {
+      if (state === "run") return pause();
+      if (state !== "pause") reset();
+      state = "run"; status(rec, "Ешь крестики, не врезайся в стены", ""); run(); draw();
+    }
+    function turn(dx, dy) {
+      if (state !== "run") start();
+      if (dx === -dir.x && dy === -dir.y) return;
+      nextDir = { x: dx, y: dy };
+    }
+    const KEYS = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
+    const onKey = e => {
+      if (!live()) return;
+      if (e.code === "Space") { e.preventDefault(); start(); }
+      else if (KEYS[e.code]) { e.preventDefault(); turn(...KEYS[e.code]); }
+    };
+    addEventListener("keydown", onKey);
+    $(".pad", rec.body).addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) turn(...b.dataset.d.split(",").map(Number)); });
+    let sx = 0, sy = 0;
+    cv.addEventListener("pointerdown", e => { sx = e.clientX; sy = e.clientY; });
+    cv.addEventListener("pointerup", e => {
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) { if (state !== "run") start(); return; }
+      if (Math.abs(dx) > Math.abs(dy)) turn(Math.sign(dx), 0); else turn(0, Math.sign(dy));
+    });
+    rec.onClose = () => { clearInterval(timer); removeEventListener("keydown", onKey); };
+    reset(); draw();
+    status(rec, touchUI ? "Свайпы или кнопки — рулить" : "Пробел — старт, стрелки или WASD — рулить", "");
+  }
+
+  // ---- clock ----
+  const clock = $("#osClock");
+  const tick = () => { const d = new Date(); clock.textContent = d.toTimeString().slice(0, 5); };
+  tick(); setInterval(tick, 10000);
+
+  // ---- boot / exit ----
+  const BOOT = [
+    `LILO 22.5 boot: <span class='hl'>${OS.host}</span>`,
+    `Loading ${OS.host}-2.4.22 ....................`,
+    "Uncompressing Linux... Ok, booting the kernel.",
+    `Linux version 2.4.22 (root@${OS.host}) (gcc version 3.3.1) #1 Sat Oct 18 03:12:44 MSK 2003`,
+    "BIOS-provided physical RAM map: 256MB LOWMEM available.",
+    "hda: QUANTUM FIREBALLlct20 20, ATA DISK drive",
+    "hdc: CD-ROM 52X, ATAPI CD/DVD-ROM drive",
+    "VFS: Mounted root (ext3 filesystem) readonly.",
+    "INIT: version 2.85 booting",
+    "Checking root filesystem ............... [<span class='ok'>  OK  </span>]",
+    "Starting system logger ................. [<span class='ok'>  OK  </span>]",
+    "Bringing up interface eth0 ............. [<span class='ok'>  OK  </span>]",
+    "Mounting /home/" + ME.login + "/portfolio ......... [<span class='ok'>  OK  </span>]",
+    "Starting mail daemon ................... [<span class='ok'>  OK  </span>]",
+    `Starting X11 (${OS.wm}) ............... [<span class='ok'>  OK  </span>]`,
+  ];
+  let booted = false, busy = false, timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+
+  function chime() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state !== "running") { ac.close(); return; }
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain(), t0 = ac.currentTime + i * 0.12;
+        o.type = "triangle"; o.frequency.value = f;
+        g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.08, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.9);
+        o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + 1);
+      });
+    } catch (err) { /* silent machine */ }
+  }
+
+  function boot() {
+    if (busy) return;
+    busy = true;
+    os.hidden = false; os.classList.remove("leaving");
+    document.documentElement.style.overflow = "hidden";
+    RetroOS.covering = true;
+    document.body.classList.add("os-on");
+    const step = reduceMotion ? 20 : 140;
+    if (booted) { showDesk(); return; }
+    desk.hidden = true; bootEl.hidden = false; bootEl.innerHTML = "";
+    BOOT.forEach((l, i) => later(() => { bootEl.innerHTML += l + "\n"; }, i * step + (i > 2 ? 300 : 0)));
+    const t = BOOT.length * step + 700;
+    later(() => { bootEl.innerHTML = ""; bootEl.className = "os-weave"; }, t);
+    later(() => { bootEl.className = "os-boot"; bootEl.hidden = true; booted = true; showDesk(); chime(); }, t + (reduceMotion ? 50 : 450));
+  }
+  function showDesk() {
+    desk.hidden = false; busy = false;
+    wall.start();
+    if (!wins.size) openDialog("welcome", "Добро пожаловать", ICON.info,
+      `<p>Это мой компьютер. Здесь всё обо мне: работы лежат в «Файлах», связаться можно через «Почту».</p>
+       <p>${touchUI ? "Нажми на иконку, чтобы открыть." : "Двойной клик по иконке открывает программу."}</p>`);
+  }
+  function exit() {
+    timers.forEach(clearTimeout); timers = [];
+    wall.stop();
+    os.classList.add("leaving");
+    RetroOS.covering = false;
+    document.body.classList.remove("os-on");
+    document.documentElement.style.overflow = "";
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    dispatchEvent(new Event("retro-os-exit"));
+    setTimeout(() => { os.hidden = true; busy = false; }, 500);
+  }
+
+  const RetroOS = window.RetroOS = { boot, exit, covering: false };
+  if (location.hash === "#os") { scrollTo(0, document.documentElement.scrollHeight); setTimeout(boot, 50); }
+})();
+</script>

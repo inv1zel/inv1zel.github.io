@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<title>inv1zel.log</title>
+<meta name="description" content="Портфолио inv1zel: старый компьютер в тёмной комнате, загрузка и своя операционная система нулевых с проектами внутри.">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="inv1zel.log">
+<meta property="og:description" content="Портфолио inv1zel: старый компьютер в тёмной комнате, загрузка и своя операционная система нулевых с проектами внутри.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script src="guard.js" integrity="sha384-bYv936b9/P+Gq7EsW3YjPHe31feV5deF9gBqMUiL3E011XFOo42CzlOadlzMwbJv"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css" integrity="sha384-71lJg/laCZKkSiZyqaQjt0fuJ3w6I0i/E0/mpQr0ud0KlHImEjcHFde6+wJ6SGkK">
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="fx vignette"></div>
+<div class="fx grain" id="grain"></div>
+<div class="hint" id="hint">
+  <div>КРУТИ КОЛЁСИКО — САДИСЬ ЗА КОМП</div>
+  <div class="arrow">▼</div>
+</div>
+<div id="track"></div>
+<div id="loader"><span>ЗАГРУЗКА</span></div>
+
+<div id="os" hidden>
+  <div class="os-desk" id="osDesk" hidden>
+    <div class="os-area" id="osArea">
+      <div class="os-icons" id="osIcons"></div>
+      <canvas class="os-wall" id="osWall" aria-hidden="true"></canvas>
+      <div class="os-wallmark"><b data-osname></b><span>v2.4 · build 2003 · <span data-oshost></span>.net</span></div>
+    </div>
+    <div class="os-panel">
+      <button class="btn os-start" id="osStart" aria-haspopup="menu" aria-expanded="false"><i></i><span data-osname></span></button>
+      <div class="os-menu bv" id="osMenu" role="menu" hidden></div>
+      <div class="os-tasks" id="osTasks"></div>
+      <div class="os-tray bv-in"><span>RU</span><span id="osClock">--:--</span></div>
+    </div>
+  </div>
+  <div class="os-boot" id="osBoot" hidden></div>
+  <div class="os-crt"></div>
+</div>
+
+<script src="vendor/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu"></script>
+<script src="scene.js" integrity="sha384-uXnaPFQkCCYA7ynVwVBGc6y7daah68S3v/oKAEcnoVLfGp4eZNm28g66LrGJZRCc"></script>
+<script src="os.js" integrity="sha384-XsJF3BtSd3YCRRvR1s3SskQVVGkgiA36A/3Qbq6XwDBq56P0UqQMVifJfqlAqj9l"></script>
+</body>
+</html>
