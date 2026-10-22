@@ -1,5 +1,6 @@
 (() => {
 gsap.registerPlugin(ScrollTrigger);
+ScrollTrigger.config({ignoreMobileResize:true});  // the URL bar sliding in/out shouldn't recompute every trigger
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const PI = Math.PI;
@@ -11,9 +12,13 @@ const I = {k:0, on:0};
 
 /* ================= three ================= */
 const canvas = $('#gl');
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
 const MOB = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
-renderer.setPixelRatio(Math.min(devicePixelRatio, MOB ? 1.5 : 2));
+// phones: no MSAA (the 1.5× backing store already smooths edges) — it roughly doubles the frame rate
+const renderer = new THREE.WebGLRenderer({canvas, antialias:!MOB, alpha:true, powerPreference:'high-performance'});
+const DPR_MAX = Math.min(devicePixelRatio, MOB ? 1.5 : 2); let dpr = DPR_MAX;
+renderer.setPixelRatio(dpr);
+// screens are drawn in 1280-wide coordinates and scaled down to this backing resolution
+const SK = MOB ? 0.5 : 1, DRAW_DT = MOB ? 1/12 : 1/30;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -54,7 +59,7 @@ const MAT_BY = {'apple-material':M.back, 'apple-material-sides':M.frame, 'apple-
 const mkCanvas = (w,h) => { const c=document.createElement('canvas'); c.width=w; c.height=h; return c; };
 // inner display: 3.36 × 2.354 units across both halves
 const IW=1280, IH=Math.round(1280*2.354/3.36);
-const inC = mkCanvas(IW,IH), ic = inC.getContext('2d'), inC2 = mkCanvas(IW,IH), ic2 = inC2.getContext('2d');
+const inC = mkCanvas(IW*SK,IH*SK), ic = inC.getContext('2d'), inC2 = mkCanvas(IW*SK,IH*SK), ic2 = inC2.getContext('2d');
 const inTex = new THREE.CanvasTexture(inC); inTex.encoding = THREE.sRGBEncoding; inTex.anisotropy = 8;
 const inMat = new THREE.MeshBasicMaterial({map:inTex, toneMapped:false, transparent:true});
 function halfPlane(left){
@@ -65,7 +70,7 @@ function halfPlane(left){
 const scrL = halfPlane(true), scrR = halfPlane(false);
 // cover display: on the back of the R half
 const CW=640, CH=Math.round(640*2.39/1.643);
-const cvC = mkCanvas(CW,CH), cc = cvC.getContext('2d');
+const cvC = mkCanvas(CW*SK,CH*SK), cc = cvC.getContext('2d');
 const cvTex = new THREE.CanvasTexture(cvC); cvTex.encoding = THREE.sRGBEncoding; cvTex.anisotropy = 8;
 const cvMat = new THREE.MeshBasicMaterial({map:cvTex, toneMapped:false, transparent:true});
 const cover = new THREE.Mesh(new THREE.PlaneGeometry(1.643, 2.39), cvMat); cover.rotation.y = PI; cover.position.set(-0.8757, 0, -0.1085);
@@ -153,8 +158,8 @@ function drawCover(c,w,h,t){
 const MODES=[drawLock, drawSplit, drawFlex, drawBattery];
 function drawInner(t){
   const m=Math.max(0,Math.min(MODES.length-1,S.mode)), a=Math.floor(m), f=m-a;
-  MODES[a](ic,IW,IH,t);
-  if(f>0.01 && MODES[a+1]){ MODES[a+1](ic2,IW,IH,t); ic.globalAlpha=f; ic.drawImage(inC2,0,0); ic.globalAlpha=1; }
+  ic.setTransform(SK,0,0,SK,0,0); MODES[a](ic,IW,IH,t);
+  if(f>0.01 && MODES[a+1]){ ic2.setTransform(SK,0,0,SK,0,0); MODES[a+1](ic2,IW,IH,t); ic.setTransform(1,0,0,1,0,0); ic.globalAlpha=f; ic.drawImage(inC2,0,0); ic.globalAlpha=1; ic.setTransform(SK,0,0,SK,0,0); }
   frameMask(ic,IW,IH,72,IW*.955,IH*.07,18);
   inTex.needsUpdate=true;
 }
@@ -207,12 +212,20 @@ let vw=0, vh=0;
 function resize(){ vw=innerWidth; vh=innerHeight; renderer.setSize(vw,vh,false); camera.aspect=vw/vh; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 const clock = new THREE.Clock(); const root=document.documentElement;
-let stageOn = true, lastDraw = -1;
+let stageOn = true, lastDraw = -1, lastAcc = '';
+// drop resolution step by step if frames run long (slow phones), never below 1×
+let frameAvg = 16, lastFrame = 0, sinceCheck = 0;
+function adapt(now){
+  if (lastFrame) frameAvg += (Math.min(now - lastFrame, 100) - frameAvg) * 0.05;
+  lastFrame = now;
+  if (++sinceCheck > 90 && frameAvg > 24 && dpr > 1) { dpr = Math.max(1, dpr - 0.25); renderer.setPixelRatio(dpr); renderer.setSize(vw, vh, false); sinceCheck = 0; }
+}
 new IntersectionObserver(([e]) => { stageOn = e.isIntersecting; }).observe($('#stage'));
 const nR = new THREE.Vector3(), toCam = new THREE.Vector3(), wp = new THREE.Vector3();
 const facing = (obj, group, z) => { obj.getWorldPosition(wp); toCam.copy(camera.position).sub(wp); return nR.set(0,0,z).transformDirection(group.matrixWorld).dot(toCam) > 0; };
 function render(){
-  if (!stageOn) return;
+  if (!stageOn) { lastFrame = 0; return; }
+  adapt(performance.now());
   const t = clock.getElapsedTime(); const mob = vw < 760;
   camera.position.set(0, S.cy + (mob ? 0.4 : 0), mob ? Math.max(S.cz, 9.5) * 2.15 : S.cz);  // no screen dive on phones camera.lookAt(0, S.ly + (mob ? -0.6 : 0), 0);
   const fold = PI - (PI - S.fold) * I.k;
@@ -222,16 +235,17 @@ function render(){
   pivot.position.set(mob ? 0 : S.px, S.py + (mob ? 1.25 : 0) + (reduce?0:Math.sin(t*.8)*.02), 0);  // phones: lift the model above the copy
   const on = I.on; inMat.color.setScalar(on); cvMat.color.setScalar(on);
   const col = new THREE.Color(S.r/255, S.g/255, S.b/255);
-  root.style.setProperty('--accent', `rgb(${S.r|0},${S.g|0},${S.b|0})`);
+  const acc = `rgb(${S.r|0},${S.g|0},${S.b|0})`;
+  if (acc !== lastAcc) { root.style.setProperty('--accent', acc); lastAcc = acc; }  // restyling the page every frame is costly
   glowMat.color.copy(col).multiplyScalar(0.9 * S.glow * (0.3 + 0.7*I.on));
   accentLight.color.copy(col); accentLight.intensity = 5 * I.on;
   scene.updateMatrixWorld();
   glow.position.set(pivot.position.x, pivot.position.y - 1.4, -1.2); glow.quaternion.copy(camera.quaternion); glow.scale.set(mob ? 0.5 : 1, mob ? 0.8 : 1, 1);
   accentLight.position.set(pivot.position.x, pivot.position.y - 1.3, 1.8);
   // screens redraw at ~30 fps, and only the ones the camera can see
-  if (ready && on > 0.01 && t - lastDraw > 1/30) { lastDraw = t;
+  if (ready && on > 0.01 && t - lastDraw > DRAW_DT) { lastDraw = t;
     if (fold < 3.0 && (facing(scrL, halfR, 1) || facing(scrR, halfC, 1))) drawInner(t);
-    if (facing(cover, halfR, -1)) { drawCover(cc,CW,CH,t); cvTex.needsUpdate = true; } }
+    if (facing(cover, halfR, -1)) { cc.setTransform(SK,0,0,SK,0,0); drawCover(cc,CW,CH,t); cvTex.needsUpdate = true; } }
   for(const el of coEls){ if(!(parseFloat(el.parentElement.style.opacity)>0)) continue; const [g,p]=ANCHORS[+el.dataset.a]; v3.copy(p); g.localToWorld(v3); v3.project(camera);
     el.style.transform = `translate(${(v3.x+1)/2*vw}px, ${(1-v3.y)/2*vh}px)`; }
   renderer.render(scene, camera);
