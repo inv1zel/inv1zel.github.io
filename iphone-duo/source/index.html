@@ -1,0 +1,627 @@
+<title>iPhone Duo Concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one sticky full-screen stage driven by scroll; the phone never leaves centre, folds and unfolds, copy orbits it. Then a normal-flow comparison. */
+:root{
+  --ink:#050506;          /* stage black */
+  --ink-2:#0d0d10;        /* raised surfaces */
+  --line:#1d1d22;         /* hairlines */
+  --fg:#f2f2f4;           /* primary text */
+  --mute:#8a8a94;         /* secondary text */
+  --dim:#25252b;          /* unlit half of the big word */
+  --accent:rgb(255,90,31);/* section light — rewritten by scroll */
+  --go:#3ddc84;           /* compare CTA */
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"Geist Mono",ui-monospace,Menlo,monospace;
+  --side:max(24px, env(safe-area-inset-left, 0px));
+  --side-r:max(24px, env(safe-area-inset-right, 0px));
+  color-scheme:dark;
+}
+html{background:var(--ink)}
+body{background:var(--ink);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--fg);outline-offset:3px;border-radius:6px}
+
+.nav{position:fixed;inset:0 0 auto;z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:48px;
+  padding-top:env(safe-area-inset-top,0px);padding-left:var(--side);padding-right:var(--side-r);
+  background:linear-gradient(#050506 0%, rgba(5,5,6,.75) 60%, rgba(5,5,6,0));font-size:12px}
+.nav-links{display:flex;gap:22px;color:var(--mute)}
+.nav-links a:hover{color:var(--fg)}
+.nav-title{font-weight:600;letter-spacing:.01em;display:flex;gap:8px;align-items:center}
+.nav-title small{font:500 10px/1 var(--f-mono);color:var(--mute);border:1px solid var(--line);padding:3px 6px;border-radius:99px;text-transform:uppercase;letter-spacing:.08em}
+.nav-cta{justify-self:end}
+.pill{display:inline-flex;align-items:center;height:28px;padding:0 14px;border-radius:99px;background:var(--accent);color:#08080a;font-weight:600;font-size:12px;transition:filter .2s}
+.pill:hover{filter:brightness(1.12)}
+.link{font-size:12px;color:var(--fg);opacity:.8}
+.link:hover{opacity:1}
+.link::after{content:" ›"}
+
+#track{position:relative;height:1100vh}
+#stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--ink)}
+.halo{position:absolute;inset:-20%;z-index:0;pointer-events:none;
+  background:radial-gradient(40% 35% at 50% 62%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%)}
+.bigword{position:absolute;left:0;right:0;top:5vh;z-index:1;text-align:center;pointer-events:none;
+  font:900 clamp(150px,31vw,520px)/.8 var(--f-display);font-stretch:112%;letter-spacing:-.05em;
+  background:linear-gradient(90deg,var(--dim) 0%,var(--dim) 40%,var(--accent) 64%,var(--accent) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  --b:0;filter:blur(calc(var(--b)*1px))}
+.bigword .pre{display:block;font-size:.3em;font-weight:700;font-stretch:100%;letter-spacing:-.04em;line-height:1;margin-bottom:.06em}
+.orb{position:absolute;left:50%;top:50%;width:70vmin;height:70vmin;margin:-35vmin 0 0 -35vmin;border-radius:50%;z-index:1;pointer-events:none;
+  background:radial-gradient(circle, rgba(255,150,40,.9), rgba(255,90,20,.35) 35%, transparent 68%);filter:blur(10px);visibility:hidden}
+#gl{position:absolute;inset:0;z-index:2;width:100%;height:100%;display:block}
+.vignette{position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0,0,0,.75))}
+.boot{position:absolute;inset:0;z-index:30;background:#000;display:grid;place-items:center;font:500 11px var(--f-mono);letter-spacing:.2em;text-transform:uppercase;color:#3b3b42}
+
+.panel{position:absolute;z-index:5;max-width:min(520px, calc(100vw - 48px))}
+.fx{--b:0;--ab:0;filter:blur(calc(var(--b)*1px));
+  text-shadow:calc(var(--ab)*1px) 0 0 rgba(255,60,90,.6), calc(var(--ab)*-1px) 0 0 rgba(80,140,255,.6)}
+.h1{font:800 clamp(34px,4.6vw,68px)/.98 var(--f-display);letter-spacing:-.035em;text-wrap:balance}
+.h2{font:800 clamp(30px,3.8vw,56px)/1 var(--f-display);letter-spacing:-.035em;text-wrap:balance}
+.big{font:800 clamp(72px,10vw,150px)/.9 var(--f-display);letter-spacing:-.05em;font-variant-numeric:tabular-nums;display:flex;align-items:flex-start;gap:6px}
+.big sup{font:500 13px/1 var(--f-body);letter-spacing:0;color:var(--mute);margin-top:.55em}
+.copy{color:var(--mute);font-size:14px;max-width:38ch;margin-top:14px}
+.row{display:flex;gap:18px;align-items:center;margin-top:22px}
+.meta{font-size:11px;color:var(--mute);line-height:1.6}
+
+.p-hero{left:var(--side);bottom:9vh}
+.p-hero-meta{right:var(--side-r);bottom:9vh;text-align:right}
+.p-design{left:var(--side);top:22vh}
+.p-display1{left:var(--side);top:24vh}
+.p-display2{left:var(--side);top:26vh;width:340px}
+.p-hinge{right:var(--side-r);top:20vh;text-align:right}
+.p-hinge .big{justify-content:flex-end}
+.p-hinge .copy{margin-left:auto}
+.p-finish{left:var(--side);top:24vh}
+.p-batt-num{left:var(--side);top:12vh}
+.p-batt-title{left:var(--side);bottom:10vh}
+.p-batt-cta{right:var(--side-r);bottom:10vh;text-align:right}
+
+.specs{margin-top:26px;display:grid;font-size:12px}
+.specs div{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-top:1px solid var(--line)}
+.specs dt{color:var(--mute)}
+.specs dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.swatches{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
+.sw{width:112px;text-align:left;border-radius:14px;padding:8px;border:1px solid transparent;transition:border-color .25s, background .25s}
+.sw[aria-pressed="true"]{border-color:#ffffff55;background:#ffffff08}
+.sw i{display:block;height:86px;border-radius:9px;margin-bottom:10px}
+.sw b{display:block;font-size:12px;font-weight:600}
+.sw span{display:block;font-size:11px;color:var(--mute)}
+
+.callouts{position:absolute;inset:0;z-index:4;pointer-events:none;visibility:hidden}
+.co{position:absolute;left:0;top:0;--l:64px}
+.co .dot{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:var(--fg);box-shadow:0 0 0 4px #ffffff22}
+.co .ln{position:absolute;left:0;width:1px;height:var(--l);background:linear-gradient(var(--fg),#ffffff22)}
+.co .lb{position:absolute;left:0;width:170px;transform:translateX(-50%);text-align:center;font-size:11px;line-height:1.35}
+.co .lb b{display:block;font-size:12px;font-weight:600}
+.co .lb span{color:var(--mute)}
+.co.up .ln{top:calc(var(--l)*-1);background:linear-gradient(#ffffff22,var(--fg))}
+.co.up .lb{bottom:calc(var(--l) + 8px)}
+.co.dn .ln{top:0}
+.co.dn .lb{top:calc(var(--l) + 8px)}
+
+.compare{position:relative;z-index:2;background:var(--ink);padding-block:16vh 10vh;padding-left:var(--side);padding-right:var(--side-r)}
+.compare::before{content:"";position:absolute;inset:-30vh 0 auto;height:30vh;background:linear-gradient(transparent,var(--ink));pointer-events:none}
+.wrap{max-width:1180px;margin:0 auto}
+.compare .h2{margin-bottom:56px}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.col{padding:26px 24px 28px;border-radius:22px;border:1px solid var(--line);background:var(--ink-2);display:flex;flex-direction:column;gap:22px}
+.col.hl{border-color:color-mix(in srgb,var(--go) 35%,transparent);background:radial-gradient(120% 70% at 30% 100%, color-mix(in srgb,var(--go) 16%,transparent), var(--ink-2) 70%)}
+.col h3{margin:0;font:700 20px/1.1 var(--f-display);letter-spacing:-.02em}
+.col h3 small{display:block;font:500 11px/1.4 var(--f-body);color:var(--mute);letter-spacing:0;margin-top:4px}
+.stat .val{font:800 46px/1 var(--f-display);letter-spacing:-.04em;font-variant-numeric:tabular-nums;display:inline-block}
+.stat .u{font-size:12px;color:var(--mute);margin-left:4px}
+.stat .k{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.go{background:var(--go)}
+.col .pill{align-self:flex-start;margin-top:4px}
+footer{border-top:1px solid var(--line);margin-top:12vh;padding-top:28px;display:flex;flex-wrap:wrap;gap:16px 40px;justify-content:space-between;font-size:11px;color:var(--mute)}
+footer nav{display:flex;gap:22px;flex-wrap:wrap}
+footer p{margin:0;max-width:70ch}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);z-index:40;background:#1a1a1f;border:1px solid var(--line);padding:10px 16px;border-radius:99px;font-size:12px;opacity:0;transition:.3s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:760px){
+  .nav-links{display:none}
+  .nav{grid-template-columns:1fr auto}
+  .nav-title{justify-self:start}
+  .bigword{top:12vh}
+  .panel{left:var(--side)!important;right:var(--side-r)!important;text-align:left!important;max-width:none}
+  .p-hero,.p-design,.p-display1,.p-display2,.p-hinge,.p-finish,.p-batt-title{top:auto;bottom:7vh}
+  .p-hero-meta,.p-batt-cta,.p-batt-num .copy,.p-display2 .specs,.p-hinge .copy{display:none}
+  .big{font-size:60px}
+  .p-batt-num{top:auto;bottom:calc(7vh + 64px)}
+  .p-display2{width:auto}
+  .p-hinge .big{justify-content:flex-start}.p-hinge .copy{margin-left:0}
+  .copy{font-size:13px}
+  .sw{width:92px}.sw i{height:52px}
+  .callouts{display:none}
+  .cols{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){ .toast{transition:none} }
+</style>
+
+<header class="nav">
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#design" data-go="14">Design</a>
+    <a href="#display" data-go="32">Display</a>
+    <a href="#hinge" data-go="55">Hinge</a>
+    <a href="#battery" data-go="87">Battery</a>
+  </nav>
+  <div class="nav-title">iPhone Duo <small>concept</small></div>
+  <div class="nav-cta"><button class="pill js-buy" type="button">Buy</button></div>
+</header>
+
+<main>
+<div id="track">
+  <section id="stage" aria-label="iPhone Duo product story">
+    <div class="halo"></div>
+    <div class="bigword" aria-hidden="true"><span class="pre">iPhone</span>DUO</div>
+    <div class="orb"></div>
+    <canvas id="gl" aria-label="3D iPhone Duo"></canvas>
+    <div class="vignette"></div>
+
+    <div class="callouts" id="co-side">
+      <div class="co up" data-a="0"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Side button</b><span>Wake, pay, talk to Siri</span></div></div>
+      <div class="co dn" data-a="1"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Titanium frame</b><span>Grade 5, brushed by hand</span></div></div>
+      <div class="co up" data-a="2"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Action button</b><span>Camera, torch or any shortcut</span></div></div>
+    </div>
+    <div class="callouts" id="co-hinge">
+      <div class="co up" data-a="3"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Liquid-metal hinge</b><span>Closes flat, no gap</span></div></div>
+      <div class="co dn" data-a="4"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Crease-free glass</b><span>Ultra-thin, self-levelling</span></div></div>
+      <div class="co dn" data-a="5"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Holds any angle</b><span>From 15° to 165°</span></div></div>
+    </div>
+
+    <div class="panel p-hero"><div class="hero-in">
+      <h1 class="h1 fx">Folds into your pocket. Opens into your day.</h1>
+      <p class="copy">A phone when it’s closed, a 7.8-inch canvas when it’s open, and a hinge you’ll stop noticing by Tuesday.</p>
+      <div class="row"><button class="pill js-buy" type="button">Buy</button><a class="link" href="#compare">Compare models</a></div>
+    </div></div>
+    <div class="panel p-hero-meta meta"><div class="hero-in">7.8″ inside · 6.1″ outside<br>Cloud White, Titanium Black, Sky Blue</div></div>
+
+    <div class="panel p-design" id="design">
+      <div class="big fx"><span id="n-thick">5.6</span><sup>mm<br>open</sup></div>
+      <h2 class="h2 fx">Titanium,<br>folded thin.</h2>
+      <p class="copy">Open, it’s thinner than a pencil. Closed, it’s an ordinary phone with two cameras and no compromises.</p>
+    </div>
+
+    <div class="panel p-display1" id="display">
+      <div class="big fx"><span id="n-nits">3,000</span><sup>nits</sup></div>
+      <h2 class="h2 fx">Bright enough for noon.<br>Dim enough for midnight.</h2>
+      <p class="copy">The inner display peaks at 3,000 nits outdoors and drops to a single nit in bed.</p>
+    </div>
+
+    <div class="panel p-display2">
+      <h2 class="h2 fx" style="font-size:clamp(26px,2.6vw,38px)">Two apps,<br>side by side.</h2>
+      <p class="copy">Cut a video on the left while the export runs on the right. Drag anything across the fold.</p>
+      <dl class="specs">
+        <div><dt>Inner display</dt><dd>7.8 in, 120 Hz</dd></div>
+        <div><dt>Cover display</dt><dd>6.1 in, Always-On</dd></div>
+        <div><dt>Contrast</dt><dd>2,000,000:1</dd></div>
+        <div><dt>Crease</dt><dd>&lt; 0.1 mm</dd></div>
+      </dl>
+    </div>
+
+    <div class="panel p-hinge" id="hinge">
+      <div class="big fx"><span id="n-folds">200,000</span><sup>folds</sup></div>
+      <h2 class="h2 fx">Tested to fold<br>for years.</h2>
+      <p class="copy">A liquid-metal hinge that holds any angle. Stand it up for a call, half-open it for a video, close it without a gap.</p>
+    </div>
+
+    <div class="panel p-finish">
+      <h2 class="h2 fx">Three finishes.<br>Both sides.</h2>
+      <p class="copy">Matte glass on the back, titanium on the edges. The colour wraps all the way round the fold.</p>
+      <div class="swatches" role="group" aria-label="Finish">
+        <button class="sw" type="button" data-finish="white" aria-pressed="true"><i style="background:linear-gradient(140deg,#f3efe6,#cfc8b8)"></i><b>Cloud White</b><span>Matte glass</span></button>
+        <button class="sw" type="button" data-finish="black" aria-pressed="false"><i style="background:linear-gradient(140deg,#3b3c40,#15161a)"></i><b>Titanium Black</b><span>Matte glass</span></button>
+        <button class="sw" type="button" data-finish="blue" aria-pressed="false"><i style="background:linear-gradient(140deg,#c9dcf2,#86a7cf)"></i><b>Sky Blue</b><span>Matte glass</span></button>
+      </div>
+    </div>
+
+    <div class="panel p-batt-num" id="battery">
+      <div class="big fx"><span id="n-hours">30</span><sup>hours</sup></div>
+      <p class="copy" style="margin-top:6px">Of video on one charge. Two cells, one on each side of the fold.</p>
+    </div>
+    <div class="panel p-batt-title"><h2 class="h1 fx">Fold it. Forget it.</h2></div>
+    <div class="panel p-batt-cta"><div class="row" style="justify-content:flex-end;margin:0 0 10px"><button class="pill js-buy" type="button">Buy</button><a class="link" href="#compare">Compare models</a></div><div class="meta">256 GB to 1 TB · Three finishes</div></div>
+
+    <div class="boot">iPhone Duo</div>
+  </section>
+</div>
+
+<section class="compare" id="compare">
+  <div class="wrap">
+    <h2 class="h2 fx" id="cmp-title">Pick your shape.</h2>
+    <div class="cols">
+      <article class="col">
+        <h3>iPhone Air<small>The thin one</small></h3>
+        <div class="stat"><div class="k">Largest display</div><span class="val" data-v="6.5">6.5</span><span class="u">in</span></div>
+        <div class="stat"><div class="k">Thickness</div><span class="val" data-v="5.6">5.6</span><span class="u">mm</span></div>
+        <div class="stat"><div class="k">Video playback</div><span class="val" data-v="27">27</span><span class="u">hr</span></div>
+        <div class="stat"><div class="k">Rear cameras</div><span class="val" data-v="1">1</span></div>
+        <div class="stat"><div class="k">Weight</div><span class="val" data-v="165">165</span><span class="u">g</span></div>
+        <button class="pill js-buy" type="button" style="background:var(--fg)">Select</button>
+      </article>
+      <article class="col hl">
+        <h3>iPhone Duo<small>The one that opens</small></h3>
+        <div class="stat"><div class="k">Largest display</div><span class="val" data-v="7.8">7.8</span><span class="u">in</span></div>
+        <div class="stat"><div class="k">Thickness, open</div><span class="val" data-v="5.6">5.6</span><span class="u">mm</span></div>
+        <div class="stat"><div class="k">Video playback</div><span class="val" data-v="30">30</span><span class="u">hr</span></div>
+        <div class="stat"><div class="k">Rear cameras</div><span class="val" data-v="2">2</span></div>
+        <div class="stat"><div class="k">Weight</div><span class="val" data-v="239">239</span><span class="u">g</span></div>
+        <button class="pill go js-buy" type="button">Select</button>
+      </article>
+      <article class="col">
+        <h3>iPhone Pro Max<small>The big slab</small></h3>
+        <div class="stat"><div class="k">Largest display</div><span class="val" data-v="6.9">6.9</span><span class="u">in</span></div>
+        <div class="stat"><div class="k">Thickness</div><span class="val" data-v="8.8">8.8</span><span class="u">mm</span></div>
+        <div class="stat"><div class="k">Video playback</div><span class="val" data-v="37">37</span><span class="u">hr</span></div>
+        <div class="stat"><div class="k">Rear cameras</div><span class="val" data-v="3">3</span></div>
+        <div class="stat"><div class="k">Weight</div><span class="val" data-v="231">231</span><span class="u">g</span></div>
+        <button class="pill js-buy" type="button" style="background:var(--fg)">Select</button>
+      </article>
+    </div>
+    <footer>
+      <nav><a href="#design" data-go="14">Design</a><a href="#display" data-go="32">Display</a><a href="#hinge" data-go="55">Hinge</a><a href="#battery" data-go="87">Battery</a></nav>
+      <p>Independent design prototype. iPhone Duo is not a real product. Not affiliated with or endorsed by Apple Inc. iPhone is a trademark of Apple Inc. All figures are illustrative.</p>
+    </footer>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast" role="status">Prototype only — checkout isn’t connected.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script>
+(() => {
+gsap.registerPlugin(ScrollTrigger);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const PI = Math.PI;
+
+/* ================= state ================= */
+// S is scrubbed by scroll (fold: 0 = open flat, π = closed); I is the one-off intro.
+const S = {rotY:-0.38, rotX:0.06, fold:0.18, px:0.35, py:0, cz:10.5, cy:0.45, ly:0, mode:0, glow:1, r:255, g:90, b:31};
+const I = {k:0, on:0};
+
+/* ================= three ================= */
+const canvas = $('#gl');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+const MOB = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
+renderer.setPixelRatio(Math.min(devicePixelRatio, MOB ? 1.5 : 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
+{
+  const env = new THREE.Scene(); env.background = new THREE.Color(0x060607);
+  const panel = (x,y,z,w,h,v) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({color:new THREE.Color(v,v,v), side:THREE.DoubleSide})); m.position.set(x,y,z); m.lookAt(0,0,0); env.add(m); };
+  panel(0,7,1,9,6,2.2); panel(-7,2,4,3,7,1.3); panel(7,1.5,-3,3,7,1.0); panel(0,0.5,8,12,1.2,0.7); panel(0,-6,0,10,10,0.08); panel(2,1,-8,6,4,0.6);
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(env, 0.03).texture;
+}
+const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(-3,6,5); scene.add(key);
+const accentLight = new THREE.PointLight(0xff5a1f, 6, 7, 2); scene.add(accentLight);
+
+// rig: pivot (scroll rotation) > inner (recentres as it folds) > R half (fixed), C half and hinge (rotate about the fold axis x=0,z=0)
+const pivot = new THREE.Group(); scene.add(pivot);
+const inner = new THREE.Group(); pivot.add(inner);
+const halfR = new THREE.Group(), halfC = new THREE.Group(), hinge = new THREE.Group();
+inner.add(halfR, halfC, hinge);
+
+const lin = (r,g,b) => new THREE.Color(r,g,b);
+const FINISH = {
+  white: {back: lin(.80,.78,.70), frame: lin(.67,.67,.67)},
+  black: {back: lin(.035,.036,.04), frame: lin(.12,.12,.13)},
+  blue:  {back: lin(.48,.62,.82), frame: lin(.55,.62,.72)}
+};
+const M = {
+  back:    new THREE.MeshStandardMaterial({color:FINISH.white.back.clone(), metalness:.25, roughness:.6}),
+  frame:   new THREE.MeshStandardMaterial({color:FINISH.white.frame.clone(), metalness:.97, roughness:.24}),
+  frameHi: new THREE.MeshStandardMaterial({color:0x3a3b3f, metalness:.2, roughness:.6}),
+  black:   new THREE.MeshStandardMaterial({color:0x010101, metalness:0, roughness:.45, envMapIntensity:.35}),
+  glass:   new THREE.MeshStandardMaterial({color:0xffffff, metalness:1, roughness:0, transparent:true, opacity:.12, depthWrite:false}),
+  cam:     new THREE.MeshStandardMaterial({roughness:.35, metalness:0})
+};
+const MAT_BY = {'apple-material':M.back, 'apple-material-sides':M.frame, 'apple-material-sides-lighter':M.frameHi, 'less-black':M.black, 'black':M.black, 'glass':M.glass, 'screen':M.cam};
+
+/* ================= screens (canvas) ================= */
+const mkCanvas = (w,h) => { const c=document.createElement('canvas'); c.width=w; c.height=h; return c; };
+// inner display: 3.36 × 2.354 units across both halves
+const IW=1280, IH=Math.round(1280*2.354/3.36);
+const inC = mkCanvas(IW,IH), ic = inC.getContext('2d'), inC2 = mkCanvas(IW,IH), ic2 = inC2.getContext('2d');
+const inTex = new THREE.CanvasTexture(inC); inTex.encoding = THREE.sRGBEncoding; inTex.anisotropy = 8;
+const inMat = new THREE.MeshBasicMaterial({map:inTex, toneMapped:false, transparent:true});
+function halfPlane(left){
+  const g = new THREE.PlaneGeometry(1.68, 2.354); const uv = g.attributes.uv;
+  for(let i=0;i<uv.count;i++) uv.setX(i, uv.getX(i)*.5 + (left?0:.5));
+  const m = new THREE.Mesh(g, inMat); m.position.set(left?-0.84:0.84, 0, 0.0025); return m;
+}
+const scrL = halfPlane(true), scrR = halfPlane(false);
+// cover display: on the back of the R half
+const CW=640, CH=Math.round(640*2.39/1.643);
+const cvC = mkCanvas(CW,CH), cc = cvC.getContext('2d');
+const cvTex = new THREE.CanvasTexture(cvC); cvTex.encoding = THREE.sRGBEncoding; cvTex.anisotropy = 8;
+const cvMat = new THREE.MeshBasicMaterial({map:cvTex, toneMapped:false, transparent:true});
+const cover = new THREE.Mesh(new THREE.PlaneGeometry(1.643, 2.39), cvMat); cover.rotation.y = PI; cover.position.set(-0.8757, 0, -0.1085);
+
+function roundRect(x,X,Y,w,h,r,keep){ if(!keep) x.beginPath(); x.moveTo(X+r,Y); x.arcTo(X+w,Y,X+w,Y+h,r); x.arcTo(X+w,Y+h,X,Y+h,r); x.arcTo(X,Y+h,X,Y,r); x.arcTo(X,Y,X+w,Y,r); x.closePath(); }
+// r: outer corners (right), rl: corners on the left edge — 0 where the glass meets the hinge square
+function frameMask(c,w,h,r,hx,hy,hr,rl=r){ c.save(); c.globalCompositeOperation='destination-out'; c.beginPath(); c.rect(0,0,w,h);
+  c.moveTo(rl,0); c.arcTo(w,0,w,h,r); c.arcTo(w,h,0,h,r); if(rl){ c.arcTo(0,h,0,0,rl); c.arcTo(0,0,w,0,rl); } else { c.lineTo(0,h); c.lineTo(0,0); } c.closePath(); c.fill('evenodd'); c.restore(); c.save(); c.fillStyle='#000'; c.beginPath(); c.arc(hx,hy,hr,0,7); c.fill(); c.restore(); }
+const rgba = a => `rgba(${S.r|0},${S.g|0},${S.b|0},${a})`;
+function wallpaper(c,w,h,t){
+  c.fillStyle='#030304'; c.fillRect(0,0,w,h);
+  c.globalCompositeOperation='lighter';
+  let g=c.createRadialGradient(w*.28+Math.sin(t*.3)*60,h*.92,0,w*.28,h*.92,Math.max(w,h)*.75);
+  g.addColorStop(0,rgba(.95)); g.addColorStop(.35,rgba(.35)); g.addColorStop(1,rgba(0)); c.fillStyle=g; c.fillRect(0,0,w,h);
+  g=c.createRadialGradient(w*.85,h*.1,0,w*.85,h*.1,Math.max(w,h)*.6); g.addColorStop(0,'rgba(70,60,140,.45)'); g.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=g; c.fillRect(0,0,w,h);
+  for(let k=0;k<6;k++){ c.beginPath(); for(let xx=-20;xx<=w+20;xx+=24){ const yy=h*.5+k*h*.045+Math.sin(xx*.0045*(1280/w)+t*.45+k*.7)*h*.08; xx<0?c.moveTo(xx,yy):c.lineTo(xx,yy);} c.strokeStyle=`rgba(255,255,255,${.035+k*.012})`; c.lineWidth=h*.05; c.stroke(); }
+  c.globalCompositeOperation='source-over';
+}
+const clock2 = () => { const d=new Date(); return [String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'), d.toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long'})]; };
+function drawLock(c,w,h,t){
+  wallpaper(c,w,h,t); const [tm,dt]=clock2();
+  c.textAlign='center'; c.fillStyle='rgba(255,255,255,.75)'; c.font='500 30px Geist, sans-serif'; c.fillText(dt, w/2, 150);
+  c.fillStyle='rgba(255,255,255,.95)'; c.font='800 230px Archivo, sans-serif'; c.fillText(tm, w/2, 360);
+  // widgets across the fold
+  [[w*.08,'Weather','18°','Partly cloudy'],[w*.56,'Next up','14:30','Design review']].forEach(([x,k,v,s])=>{ c.fillStyle='rgba(255,255,255,.1)'; roundRect(c,x,h*.62,w*.36,h*.24,28); c.fill();
+    c.textAlign='left'; c.fillStyle='rgba(255,255,255,.6)'; c.font='500 22px Geist, sans-serif'; c.fillText(k,x+28,h*.62+44);
+    c.fillStyle='#fff'; c.font='800 64px Archivo, sans-serif'; c.fillText(v,x+26,h*.62+120); c.fillStyle='rgba(255,255,255,.7)'; c.font='500 20px Geist, sans-serif'; c.fillText(s,x+28,h*.62+156); });
+}
+function tc(f){ const FF=f%24, s=Math.floor(f/24), ss=s%60, m=Math.floor(s/60)%60, hh=Math.floor(s/3600); return [hh,m,ss,FF].map(n=>String(n).padStart(2,'0')).join(':'); }
+const CLIPS=[[[0,.22,0],[.24,.3,0],[.56,.18,0],[.76,.24,0]],[[.1,.26,1],[.4,.34,1],[.8,.18,1]],[[.05,.15,2],[.32,.12,2],[.6,.28,2]]];
+function drawSplit(c,w,h,t){
+  c.fillStyle='#0b0b0e'; c.fillRect(0,0,w,h);
+  const half=w/2, pad=26;
+  // left app: viewer + timeline
+  c.save(); roundRect(c,pad,pad+30,half-pad*1.5,h*.42,18); c.clip(); c.translate(pad,pad+30); wallpaper(c,half,h*.42,t*1.6); c.restore();
+  c.fillStyle='rgba(255,255,255,.75)'; c.font='500 16px "Geist Mono", monospace'; c.textAlign='left'; c.fillText('CLIP_0412 · 4K · HDR', pad+18, pad+30+h*.42-18);
+  const ty=h*.58, tw=half-pad*1.5, cols=[rgba(.85),'#5b7cff','#9b6bff'];
+  CLIPS.forEach((row,r)=>{ const yy=ty+r*58; c.fillStyle='#16161b'; roundRect(c,pad,yy,tw,48,8); c.fill();
+    row.forEach(([s,l,ci])=>{ c.fillStyle=cols[ci]; c.globalAlpha=.85; roundRect(c,pad+s*tw+2,yy+3,l*tw-4,42,7); c.fill(); c.globalAlpha=1; }); });
+  const ay=ty+3*58; c.fillStyle='#16161b'; roundRect(c,pad,ay,tw,48,8); c.fill(); c.fillStyle='#3ddc84';
+  for(let xx=0;xx<tw;xx+=6){ const a=Math.abs(Math.sin(xx*.03)*Math.sin(xx*.007+1))*18+3; c.fillRect(pad+xx, ay+24-a, 3, a*2); }
+  const ph=pad+((t*50)%tw); c.fillStyle='#fff'; c.fillRect(ph, ty-10, 2, 4*58+4);
+  // right app: export panel
+  const ix=half+pad*.5, iw=half-pad*1.5; c.fillStyle='#15151a'; roundRect(c,ix,pad+30,iw,h-pad*2-30,22); c.fill();
+  c.fillStyle='rgba(255,255,255,.5)'; c.font='500 18px Geist, sans-serif'; c.fillText('EXPORT', ix+30, pad+80);
+  c.fillStyle='#fff'; c.font='700 32px Archivo, sans-serif'; c.fillText('4K ProRes · Log', ix+30, pad+124);
+  c.font='500 72px "Geist Mono", monospace'; c.fillText(tc(2*60*24+41*24+Math.floor(t*24)), ix+26, pad+230);
+  const p=(t*.05)%1; c.fillStyle='#26262d'; roundRect(c,ix+30,pad+268,iw-60,16,8); c.fill(); c.fillStyle=rgba(1); roundRect(c,ix+30,pad+268,(iw-60)*p+16,16,8); c.fill();
+  c.fillStyle='rgba(255,255,255,.55)'; c.font='500 18px Geist, sans-serif'; c.fillText(`${Math.round(p*100)}% · ${Math.max(1,Math.round((1-p)*60))} s left`, ix+30, pad+318);
+  [['Frames / s', String(Math.round(58+Math.sin(t*3)*2))],['Neural Engine', Math.round(62+Math.sin(t*1.3)*9)+' %'],['Temperature', 'Cool']].forEach(([k,v],i)=>{
+    const yy=pad+400+i*62; c.fillStyle='#24242b'; c.fillRect(ix+30,yy-36,iw-60,1);
+    c.fillStyle='rgba(255,255,255,.5)'; c.textAlign='left'; c.font='500 20px Geist, sans-serif'; c.fillText(k, ix+30, yy); c.fillStyle='#fff'; c.textAlign='right'; c.font='500 20px "Geist Mono", monospace'; c.fillText(v, ix+iw-30, yy); });
+  c.textAlign='left';
+}
+function drawFlex(c,w,h,t){
+  // half-open: a video call on one side, controls on the other
+  c.fillStyle='#06070b'; c.fillRect(0,0,w,h);
+  const half=w/2;
+  c.save(); roundRect(c,22,22,half-44,h-44,26); c.clip(); c.translate(22,22); wallpaper(c,half-44,h-44,t*1.2);
+  c.fillStyle='rgba(255,255,255,.9)'; c.beginPath(); c.arc((half-44)/2,(h-44)*.42,90,0,7); c.fill();
+  c.fillStyle=rgba(.9); c.font='800 80px Archivo, sans-serif'; c.textAlign='center'; c.fillText('MK', (half-44)/2, (h-44)*.42+28);
+  c.fillStyle='#fff'; c.font='600 30px Geist, sans-serif'; c.fillText('Maya K.', (half-44)/2, (h-44)*.42+160);
+  c.fillStyle='rgba(255,255,255,.7)'; c.font='500 22px "Geist Mono", monospace'; c.fillText(tc(Math.floor(t*24)+24*125).slice(3,8), (half-44)/2, (h-44)*.42+200);
+  c.restore();
+  c.textAlign='left'; c.fillStyle='rgba(255,255,255,.5)'; c.font='500 20px Geist, sans-serif'; c.fillText('FLEX MODE · 92°', half+40, 80);
+  c.fillStyle='#fff'; c.font='800 150px Archivo, sans-serif'; c.fillText('92°', half+34, 240);
+  const btn=[['Mute','#2a2b33'],['Camera','#2a2b33'],['Share','#2a2b33'],['End',rgba(1)]];
+  btn.forEach(([l,col],i)=>{ const x=half+40+(i%2)*((half-100)/2+20), y=320+Math.floor(i/2)*150; c.fillStyle=col; roundRect(c,x,y,(half-100)/2,120,30); c.fill(); c.fillStyle='#fff'; c.font='600 26px Geist, sans-serif'; c.fillText(l,x+30,y+70); });
+  c.beginPath(); for(let xx=0;xx<=half-80;xx+=6){ const v=.5+.35*Math.sin(xx*.03-t*4)*Math.sin(xx*.007+t); c.lineTo(half+40+xx, h-80-v*60);} c.strokeStyle=rgba(.9); c.lineWidth=4; c.stroke();
+}
+function drawBattery(c,w,h,t){
+  wallpaper(c,w,h,t);
+  const bw=Math.min(380,w*.6),bh=bw*.42,bx=w/2-bw/2,by=h/2-bh/2-40;
+  c.strokeStyle='rgba(255,255,255,.9)'; c.lineWidth=8; roundRect(c,bx,by,bw,bh,bh*.22); c.stroke();
+  c.fillStyle='rgba(255,255,255,.9)'; roundRect(c,bx+bw+10,by+bh/2-bh*.16,14,bh*.32,6); c.fill();
+  c.fillStyle=rgba(1); roundRect(c,bx+16,by+16,bw-32,bh-32,bh*.14); c.fill();
+  c.textAlign='center'; c.fillStyle='#fff'; c.font=`800 ${Math.round(bw*.32)}px Archivo, sans-serif`; c.fillText('100%', w/2, by+bh+bw*.38);
+  c.fillStyle='rgba(255,255,255,.7)'; c.font=`500 ${Math.round(bw*.065)}px Geist, sans-serif`; c.fillText('Up to 30 hr of video', w/2, by+bh+bw*.52);
+}
+function drawCover(c,w,h,t){
+  if(S.mode>=2.5){ drawBattery(c,w,h,t); }
+  else { wallpaper(c,w,h,t); const [tm,dt]=clock2(); c.textAlign='center'; c.fillStyle='rgba(255,255,255,.75)'; c.font='500 26px Geist, sans-serif'; c.fillText(dt, w/2, 150); c.fillStyle='#fff'; c.font='800 150px Archivo, sans-serif'; c.fillText(tm, w/2, 290); }
+  frameMask(c,w,h,74,w*.86,h*.055,20,0);
+}
+const MODES=[drawLock, drawSplit, drawFlex, drawBattery];
+function drawInner(t){
+  const m=Math.max(0,Math.min(MODES.length-1,S.mode)), a=Math.floor(m), f=m-a;
+  MODES[a](ic,IW,IH,t);
+  if(f>0.01 && MODES[a+1]){ MODES[a+1](ic2,IW,IH,t); ic.globalAlpha=f; ic.drawImage(inC2,0,0); ic.globalAlpha=1; }
+  frameMask(ic,IW,IH,72,IW*.955,IH*.07,18);
+  inTex.needsUpdate=true;
+}
+
+/* ================= model ================= */
+let ready=false;
+(async () => {
+  try {
+    const res = await fetch('duo.b64.txt'); if (!res.ok) throw new Error(res.status);
+    const bin = atob((await res.text()).trim()), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const buf = u8.buffer, hl = new DataView(buf).getUint32(0, true);
+    const head = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)));
+    const off = 4 + hl + ((4 - (hl + 4) % 4) % 4);
+    const camTex = new THREE.TextureLoader().load('duo-cam.jpg'); camTex.encoding = THREE.sRGBEncoding; camTex.anisotropy = 8; camTex.flipY = true;
+    M.cam.map = camTex; M.cam.needsUpdate = true;
+    for (const e of head.parts) {
+      const [grp, mat, tag] = e.name.split('|');
+      if (mat === 'screen' && (tag === 'fold' || tag === 'cover')) continue;   // replaced by live canvases
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(buf, off + e.pos, e.count * 3), 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(buf, off + e.nor, e.count * 3), 3, true));
+      g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(buf, off + e.uv, e.count * 2), 2));
+      g.setIndex(new THREE.BufferAttribute(e.u32 ? new Uint32Array(buf, off + e.ind, e.icount) : new Uint16Array(buf, off + e.ind, e.icount), 1));
+      const mesh = new THREE.Mesh(g, MAT_BY[mat] || M.frame);
+      if (mat === 'glass') mesh.renderOrder = 2;
+      ({R:halfR, C:halfC, H:hinge})[grp].add(mesh);
+    }
+    halfR.add(scrL, cover); halfC.add(scrR);
+    ready = true;
+  } catch (err) { console.warn('Model failed to load:', err); }
+})();
+
+// floor glow, always facing the camera
+function glowTex(){ const c=mkCanvas(256,256), x=c.getContext('2d'); const g=x.createRadialGradient(128,128,0,128,128,128); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.35,'rgba(255,255,255,.35)'); g.addColorStop(1,'rgba(255,255,255,0)'); x.fillStyle=g; x.fillRect(0,0,256,256); return new THREE.CanvasTexture(c); }
+const glowMat = new THREE.MeshBasicMaterial({map:glowTex(), transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false});
+const glow = new THREE.Mesh(new THREE.PlaneGeometry(9,2.4), glowMat); scene.add(glow);
+
+/* ================= callouts ================= */
+const ANCHORS=[
+  [halfC, new THREE.Vector3(0.95,1.27,-0.05)],  // top side button
+  [halfC, new THREE.Vector3(1.76,-0.55,-0.05)], // outer frame
+  [halfC, new THREE.Vector3(1.77,0.5,-0.05)],   // action button
+  [hinge, new THREE.Vector3(0,0.95,-0.02)],
+  [halfR, new THREE.Vector3(-0.4,-0.6,0.01)],
+  [halfC, new THREE.Vector3(1.2,-1.05,0.0)]
+];
+const coEls = $$('.co'); const v3 = new THREE.Vector3();
+
+/* ================= render ================= */
+let vw=0, vh=0;
+function resize(){ vw=innerWidth; vh=innerHeight; renderer.setSize(vw,vh,false); camera.aspect=vw/vh; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const clock = new THREE.Clock(); const root=document.documentElement;
+let stageOn = true, lastDraw = -1;
+new IntersectionObserver(([e]) => { stageOn = e.isIntersecting; }).observe($('#stage'));
+const nR = new THREE.Vector3(), toCam = new THREE.Vector3(), wp = new THREE.Vector3();
+const facing = (obj, group, z) => { obj.getWorldPosition(wp); toCam.copy(camera.position).sub(wp); return nR.set(0,0,z).transformDirection(group.matrixWorld).dot(toCam) > 0; };
+function render(){
+  if (!stageOn) return;
+  const t = clock.getElapsedTime(); const mob = vw < 760;
+  camera.position.set(0, S.cy + (mob ? 0.4 : 0), mob ? Math.max(S.cz, 9.5) * 2.15 : S.cz);  // no screen dive on phones camera.lookAt(0, S.ly + (mob ? -0.6 : 0), 0);
+  const fold = PI - (PI - S.fold) * I.k;
+  halfC.rotation.y = -fold; hinge.rotation.y = -fold/2;
+  inner.position.x = 0.86 * fold / PI;
+  pivot.rotation.set(S.rotX, S.rotY + (reduce?0:Math.sin(t*.5)*.02), 0);
+  pivot.position.set(mob ? 0 : S.px, S.py + (mob ? 1.25 : 0) + (reduce?0:Math.sin(t*.8)*.02), 0);  // phones: lift the model above the copy
+  const on = I.on; inMat.color.setScalar(on); cvMat.color.setScalar(on);
+  const col = new THREE.Color(S.r/255, S.g/255, S.b/255);
+  root.style.setProperty('--accent', `rgb(${S.r|0},${S.g|0},${S.b|0})`);
+  glowMat.color.copy(col).multiplyScalar(0.9 * S.glow * (0.3 + 0.7*I.on));
+  accentLight.color.copy(col); accentLight.intensity = 5 * I.on;
+  scene.updateMatrixWorld();
+  glow.position.set(pivot.position.x, pivot.position.y - 1.4, -1.2); glow.quaternion.copy(camera.quaternion); glow.scale.set(mob ? 0.5 : 1, mob ? 0.8 : 1, 1);
+  accentLight.position.set(pivot.position.x, pivot.position.y - 1.3, 1.8);
+  // screens redraw at ~30 fps, and only the ones the camera can see
+  if (ready && on > 0.01 && t - lastDraw > 1/30) { lastDraw = t;
+    if (fold < 3.0 && (facing(scrL, halfR, 1) || facing(scrR, halfC, 1))) drawInner(t);
+    if (facing(cover, halfR, -1)) { drawCover(cc,CW,CH,t); cvTex.needsUpdate = true; } }
+  for(const el of coEls){ if(!(parseFloat(el.parentElement.style.opacity)>0)) continue; const [g,p]=ANCHORS[+el.dataset.a]; v3.copy(p); g.localToWorld(v3); v3.project(camera);
+    el.style.transform = `translate(${(v3.x+1)/2*vw}px, ${(1-v3.y)/2*vh}px)`; }
+  renderer.render(scene, camera);
+}
+gsap.ticker.add(render);
+
+/* ================= smooth scroll ================= */
+let lenis = null;
+if(!reduce && window.Lenis){ lenis = new Lenis({lerp:0.085, wheelMultiplier:0.9}); lenis.on('scroll', ScrollTrigger.update); gsap.ticker.add(t=>lenis.raf(t*1000)); gsap.ticker.lagSmoothing(0); }
+
+/* ================= scroll timeline (0 → 100) ================= */
+const tl = gsap.timeline({defaults:{ease:'none'}, scrollTrigger:{trigger:'#track', start:'top top', end:'bottom bottom', scrub:reduce?true:0.9}});
+const HIDE = {autoAlpha:0, y:50, '--b':14, '--ab':10};
+const SHOW = {autoAlpha:1, y:0, '--b':0, '--ab':0};
+const kids = sel => `${sel} .fx, ${sel} .copy, ${sel} .row, ${sel} .specs, ${sel} .swatches, ${sel} .meta`;
+const inn = (sel, at, d=3) => tl.fromTo(kids(sel), {...HIDE}, {...SHOW, duration:d, stagger:.35, ease:'power2.out'}, at);
+const out = (sel, at, d=2.5) => tl.to(`${kids(sel)}, ${sel} > .hero-in`, {autoAlpha:0, y:-40, '--b':14, '--ab':10, duration:d, stagger:.15, ease:'power1.in'}, at);
+const move = (o, at, d=7) => tl.to(S, {...o, duration:d, ease:'power2.inOut'}, at);
+const tint = (rgb, at, d=4) => tl.to(S, {r:rgb[0], g:rgb[1], b:rgb[2], duration:d}, at);
+const fmt = (v, dec) => dec ? v.toFixed(dec) : Math.round(v).toLocaleString('en-US');
+const count = (sel, to, at, d=7, dec=0) => { const el=$(sel), o={v:0}; tl.fromTo(o, {v:0}, {v:to, duration:d, ease:'power1.out', onUpdate:()=>el.textContent=fmt(o.v,dec)}, at); };
+const show = (sel, a, b) => { tl.fromTo(sel, {autoAlpha:0}, {autoAlpha:1, duration:1.5}, a); tl.to(sel, {autoAlpha:0, duration:1.5}, b); };
+
+// 1 — hero: open, three-quarter
+out('.p-hero', 7); out('.p-hero-meta', 7);
+tl.to('.bigword', {yPercent:-40, opacity:0, '--b':18, duration:5, ease:'power1.in'}, 8);
+
+// 2 — design: edge-on, slightly folded so the hinge reads
+move({rotY:-1.32, rotX:0.14, fold:0.55, px:1.15, cz:8.6, cy:0.4, ly:0}, 9);
+tint([214,218,226], 10);
+inn('.p-design', 13); count('#n-thick', 5.6, 13, 8, 1);
+show('#co-side', 16.5, 25.5);
+out('.p-design', 26);
+
+// 3 — display: flat and square to camera, then dive into the split view
+move({rotY:0, rotX:0.02, fold:0, px:1.2, cz:10.2, cy:0.35, ly:0}, 27);
+tint([255,190,110], 28);
+inn('.p-display1', 31); count('#n-nits', 3000, 31, 7);
+out('.p-display1', 38);
+move({cz:6.9, cy:0.1, ly:0.05, px:0.72}, 38, 6);
+tl.to(S, {mode:1, duration:2.5}, 39.5);
+inn('.p-display2', 41.5);
+out('.p-display2', 46.5);
+
+// 4 — hinge: warm orb hands over to blue, phone stands in flex mode
+tl.fromTo('.orb', {autoAlpha:0, scale:.3}, {autoAlpha:1, scale:1.1, duration:3, immediateRender:false}, 47);
+tl.to('.orb', {autoAlpha:0, scale:2.2, duration:3}, 50.5);
+move({cz:9.4, cy:0.7, ly:0, px:-1.1, rotY:-0.15, rotX:0.18, fold:1.45}, 47);
+tint([64,112,255], 49);
+tl.to(S, {mode:2, duration:2}, 49);
+inn('.p-hinge', 52); count('#n-folds', 200000, 52, 7);
+show('#co-hinge', 55, 62.5);
+out('.p-hinge', 63);
+
+// 5 — finishes: closed, camera side towards us
+move({fold:PI, rotY:0.42, rotX:0.08, px:1.15, cz:8.4, cy:0.35, ly:0}, 64);
+tint([196,190,176], 65);
+inn('.p-finish', 68);
+out('.p-finish', 77);
+
+// 6 — battery: spin to the cover display, the big word returns, light cycles
+move({rotY:PI-0.32, rotX:0.06, px:0, cz:8.8, cy:0.35, ly:0}, 78);
+tl.to(S, {mode:3, duration:2}, 80);
+tint([255,90,31], 79, 3);
+tl.fromTo('.bigword', {yPercent:40, opacity:0, '--b':18}, {yPercent:0, opacity:1, '--b':0, duration:5, ease:'power2.out', immediateRender:false}, 80);
+inn('.p-batt-num', 83); count('#n-hours', 30, 83, 6);
+inn('.p-batt-title', 84); inn('.p-batt-cta', 85);
+tint([236,236,242], 88, 2); tint([255,178,40], 92, 2); tint([61,220,132], 96, 3);
+tl.to('#stage', {opacity:.35, duration:3}, 97);
+tl.set({}, {}, 100);
+
+/* ================= intro: closed → unfolds ================= */
+const intro = gsap.timeline({delay:.2});
+intro.to('.boot', {autoAlpha:0, duration:.8, ease:'power1.out'})
+  .to(I, {on:1, duration:reduce?0:.9, ease:'power2.out'}, .4)
+  .to(I, {k:1, duration:reduce?0:2.2, ease:'power3.inOut'}, .9)
+  .from('.bigword', {yPercent:25, opacity:0, '--b':24, duration:reduce?0:1.6, ease:'power3.out'}, 1.4)
+  .from('.hero-in', {autoAlpha:0, y:40, '--b':12, duration:reduce?0:1.1, stagger:.12, ease:'power2.out'}, 2.4);
+gsap.set('.hero-in', {'--b':0});
+$$('.hero-in').forEach(el=>el.style.filter='blur(calc(var(--b,0)*1px))');
+
+/* ================= compare scramble ================= */
+function scramble(el, delay){
+  const fin=el.dataset.v, len=fin.length; let n=0;
+  gsap.fromTo(el, {'--b':10, '--ab':8}, {'--b':0, '--ab':0, duration:.9, delay, ease:'power2.out'});
+  el.classList.add('fx');
+  setTimeout(function tick(){ n++; if(n>16){ el.textContent=fin; return; }
+    el.textContent=[...fin].map((ch,i)=>/\d/.test(ch)&&i>=n/16*len?String(Math.random()*10|0):ch).join(''); setTimeout(tick,45); }, delay*1000);
+}
+ScrollTrigger.create({trigger:'#compare', start:'top 70%', once:true, onEnter(){
+  gsap.fromTo('#cmp-title', {'--b':12,'--ab':10, y:30, autoAlpha:0}, {'--b':0,'--ab':0, y:0, autoAlpha:1, duration:1, ease:'power2.out'});
+  $$('.val').forEach((el,i)=>scramble(el, .15+(i%5)*.06+Math.floor(i/5)*.08));
+}});
+
+/* ================= interactions ================= */
+const toPos = p => { const tr=$('#track'); return tr.offsetTop + (tr.offsetHeight-innerHeight)*p/100; };
+const go = y => lenis ? lenis.scrollTo(y,{duration:2}) : scrollTo({top:y, behavior:reduce?'auto':'smooth'});
+$$('[data-go]').forEach(a=>a.addEventListener('click', e=>{ e.preventDefault(); go(toPos(+a.dataset.go)); }));
+$$('a[href="#compare"]').forEach(a=>a.addEventListener('click', e=>{ e.preventDefault(); go($('#compare').offsetTop); }));
+$$('.sw').forEach(b=>b.addEventListener('click', ()=>{
+  $$('.sw').forEach(x=>x.setAttribute('aria-pressed', String(x===b)));
+  const f=FINISH[b.dataset.finish], d=reduce?0:.9;
+  gsap.to(M.back.color, {r:f.back.r, g:f.back.g, b:f.back.b, duration:d, ease:'power2.inOut'});
+  gsap.to(M.frame.color, {r:f.frame.r, g:f.frame.g, b:f.frame.b, duration:d, ease:'power2.inOut'});
+}));
+const toast=$('#toast'); let tt;
+$$('.js-buy').forEach(b=>b.addEventListener('click', ()=>{ toast.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>toast.classList.remove('on'), 2200); }));
+document.fonts && document.fonts.ready.then(()=>ScrollTrigger.refresh());
+})();
+</script>

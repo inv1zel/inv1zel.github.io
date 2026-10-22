@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<title>iPhone Duo Concept</title>
+<meta name="description" content="iPhone Duo — концепт продающей страницы складного iPhone с живой 3D-моделью, которая складывается при прокрутке.">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="iPhone Duo Concept">
+<meta property="og:description" content="iPhone Duo — концепт продающей страницы складного iPhone с живой 3D-моделью, которая складывается при прокрутке.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<script src="../guard.js" integrity="sha384-bYv936b9/P+Gq7EsW3YjPHe31feV5deF9gBqMUiL3E011XFOo42CzlOadlzMwbJv"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css" integrity="sha384-bqmgpWcyfhp2Q3JlwkrmChxiIMMrbYb2mEU24oL95bOpunu1bpJuig7zMmMN706C">
+</head>
+<body>
+<header class="nav">
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#design" data-go="14">Design</a>
+    <a href="#display" data-go="32">Display</a>
+    <a href="#hinge" data-go="55">Hinge</a>
+    <a href="#battery" data-go="87">Battery</a>
+  </nav>
+  <div class="nav-title">iPhone Duo <small>concept</small></div>
+  <div class="nav-cta"><button class="pill js-buy" type="button">Buy</button></div>
+</header>
+
+<main>
+<div id="track">
+  <section id="stage" aria-label="iPhone Duo product story">
+    <div class="halo"></div>
+    <div class="bigword" aria-hidden="true"><span class="pre">iPhone</span>DUO</div>
+    <div class="orb"></div>
+    <canvas id="gl" aria-label="3D iPhone Duo"></canvas>
+    <div class="vignette"></div>
+
+    <div class="callouts" id="co-side">
+      <div class="co up" data-a="0"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Side button</b><span>Wake, pay, talk to Siri</span></div></div>
+      <div class="co dn" data-a="1"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Titanium frame</b><span>Grade 5, brushed by hand</span></div></div>
+      <div class="co up" data-a="2"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Action button</b><span>Camera, torch or any shortcut</span></div></div>
+    </div>
+    <div class="callouts" id="co-hinge">
+      <div class="co up" data-a="3"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Liquid-metal hinge</b><span>Closes flat, no gap</span></div></div>
+      <div class="co dn" data-a="4"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Crease-free glass</b><span>Ultra-thin, self-levelling</span></div></div>
+      <div class="co dn" data-a="5"><i class="dot"></i><i class="ln"></i><div class="lb"><b>Holds any angle</b><span>From 15° to 165°</span></div></div>
+    </div>
+
+    <div class="panel p-hero"><div class="hero-in">
+      <h1 class="h1 fx">Folds into your pocket. Opens into your day.</h1>
+      <p class="copy">A phone when it’s closed, a 7.8-inch canvas when it’s open, and a hinge you’ll stop noticing by Tuesday.</p>
+      <div class="row"><button class="pill js-buy" type="button">Buy</button><a class="link" href="#compare">Compare models</a></div>
+    </div></div>
+    <div class="panel p-hero-meta meta"><div class="hero-in">7.8″ inside · 6.1″ outside<br>Cloud White, Titanium Black, Sky Blue</div></div>
+
+    <div class="panel p-design" id="design">
+      <div class="big fx"><span id="n-thick">5.6</span><sup>mm<br>open</sup></div>
+      <h2 class="h2 fx">Titanium,<br>folded thin.</h2>
+      <p class="copy">Open, it’s thinner than a pencil. Closed, it’s an ordinary phone with two cameras and no compromises.</p>
+    </div>
+
+    <div class="panel p-display1" id="display">
+      <div class="big fx"><span id="n-nits">3,000</span><sup>nits</sup></div>
+      <h2 class="h2 fx">Bright enough for noon.<br>Dim enough for midnight.</h2>
+      <p class="copy">The inner display peaks at 3,000 nits outdoors and drops to a single nit in bed.</p>
+    </div>
+
+    <div class="panel p-display2">
+      <h2 class="h2 fx" style="font-size:clamp(26px,2.6vw,38px)">Two apps,<br>side by side.</h2>
+      <p class="copy">Cut a video on the left while the export runs on the right. Drag anything across the fold.</p>
+      <dl class="specs">
+        <div><dt>Inner display</dt><dd>7.8 in, 120 Hz</dd></div>
+        <div><dt>Cover display</dt><dd>6.1 in, Always-On</dd></div>
+        <div><dt>Contrast</dt><dd>2,000,000:1</dd></div>
+        <div><dt>Crease</dt><dd>&lt; 0.1 mm</dd></div>
+      </dl>
+    </div>
+
+    <div class="panel p-hinge" id="hinge">
+      <div class="big fx"><span id="n-folds">200,000</span><sup>folds</sup></div>
+      <h2 class="h2 fx">Tested to fold<br>for years.</h2>
+      <p class="copy">A liquid-metal hinge that holds any angle. Stand it up for a call, half-open it for a video, close it without a gap.</p>
+    </div>
+
+    <div class="panel p-finish">
+      <h2 class="h2 fx">Three finishes.<br>Both sides.</h2>
+      <p class="copy">Matte glass on the back, titanium on the edges. The colour wraps all the way round the fold.</p>
+      <div class="swatches" role="group" aria-label="Finish">
+        <button class="sw" type="button" data-finish="white" aria-pressed="true"><i style="background:linear-gradient(140deg,#f3efe6,#cfc8b8)"></i><b>Cloud White</b><span>Matte glass</span></button>
+        <button class="sw" type="button" data-finish="black" aria-pressed="false"><i style="background:linear-gradient(140deg,#3b3c40,#15161a)"></i><b>Titanium Black</b><span>Matte glass</span></button>
+        <button class="sw" type="button" data-finish="blue" aria-pressed="false"><i style="background:linear-gradient(140deg,#c9dcf2,#86a7cf)"></i><b>Sky Blue</b><span>Matte glass</span></button>
+      </div>
+    </div>
+
+    <div class="panel p-batt-num" id="battery">
+      <div class="big fx"><span id="n-hours">30</span><sup>hours</sup></div>
+      <p class="copy" style="margin-top:6px">Of video on one charge. Two cells, one on each side of the fold.</p>
+    </div>
+    <div class="panel p-batt-title"><h2 class="h1 fx">Fold it. Forget it.</h2></div>
+    <div class="panel p-batt-cta"><div class="row" style="justify-content:flex-end;margin:0 0 10px"><button class="pill js-buy" type="button">Buy</button><a class="link" href="#compare">Compare models</a></div><div class="meta">256 GB to 1 TB · Three finishes</div></div>
+
+    <div class="boot">iPhone Duo</div>
+  </section>
+</div>
+
+<section class="compare" id="compare">
+  <div class="wrap">
+    <h2 class="h2 fx" id="cmp-title">Pick your shape.</h2>
+    <div class="cols">
+      <article class="col">
+        <h3>iPhone Air<small>The thin one</small></h3>
+        <div class="stat"><div class="k">Largest display</div><span class="val" data-v="6.5">6.5</span><span class="u">in</span></div>
+        <div class="stat"><div class="k">Thickness</div><span class="val" data-v="5.6">5.6</span><span class="u">mm</span></div>
+        <div class="stat"><div class="k">Video playback</div><span class="val" data-v="27">27</span><span class="u">hr</span></div>
+        <div class="stat"><div class="k">Rear cameras</div><span class="val" data-v="1">1</span></div>
+        <div class="stat"><div class="k">Weight</div><span class="val" data-v="165">165</span><span class="u">g</span></div>
+        <button class="pill js-buy" type="button" style="background:var(--fg)">Select</button>
+      </article>
+      <article class="col hl">
+        <h3>iPhone Duo<small>The one that opens</small></h3>
+        <div class="stat"><div class="k">Largest display</div><span class="val" data-v="7.8">7.8</span><span class="u">in</span></div>
+        <div class="stat"><div class="k">Thickness, open</div><span class="val" data-v="5.6">5.6</span><span class="u">mm</span></div>
+        <div class="stat"><div class="k">Video playback</div><span class="val" data-v="30">30</span><span class="u">hr</span></div>
+        <div class="stat"><div class="k">Rear cameras</div><span class="val" data-v="2">2</span></div>
+        <div class="stat"><div class="k">Weight</div><span class="val" data-v="239">239</span><span class="u">g</span></div>
+        <button class="pill go js-buy" type="button">Select</button>
+      </article>
+      <article class="col">
+        <h3>iPhone Pro Max<small>The big slab</small></h3>
+        <div class="stat"><div class="k">Largest display</div><span class="val" data-v="6.9">6.9</span><span class="u">in</span></div>
+        <div class="stat"><div class="k">Thickness</div><span class="val" data-v="8.8">8.8</span><span class="u">mm</span></div>
+        <div class="stat"><div class="k">Video playback</div><span class="val" data-v="37">37</span><span class="u">hr</span></div>
+        <div class="stat"><div class="k">Rear cameras</div><span class="val" data-v="3">3</span></div>
+        <div class="stat"><div class="k">Weight</div><span class="val" data-v="231">231</span><span class="u">g</span></div>
+        <button class="pill js-buy" type="button" style="background:var(--fg)">Select</button>
+      </article>
+    </div>
+    <footer>
+      <nav><a href="#design" data-go="14">Design</a><a href="#display" data-go="32">Display</a><a href="#hinge" data-go="55">Hinge</a><a href="#battery" data-go="87">Battery</a></nav>
+      <p>Independent design prototype. iPhone Duo is not a real product. Not affiliated with or endorsed by Apple Inc. iPhone is a trademark of Apple Inc. All figures are illustrative.</p>
+    </footer>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast" role="status">Prototype only — checkout isn’t connected.</div>
+<script src="../vendor/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu"></script>
+<script src="vendor/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt"></script>
+<script src="vendor/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d"></script>
+<script src="vendor/lenis.min.js" integrity="sha384-B2WBjDzEjJpYvhmi2UyEn7rektqkf5suS6sNoyyrf0EBAwBHdkiXxIlU0V5Ru2ed"></script>
+<script src="app.js" integrity="sha384-UAAbLD/1DEcv1QLboUJOL/9l1/M7MkZ4Xxgi8czCG5V0NCPAGlJaBvYcC1kdae71"></script>
+</body>
+</html>
